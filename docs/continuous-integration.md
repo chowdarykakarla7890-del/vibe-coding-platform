@@ -1,6 +1,6 @@
 # Reproducible checks and release activation
 
-Updated 2026-08-28. The workflow is active on GitHub in [draft PR #1](https://github.com/chowdarykakarla7890-del/vibe-coding-platform/pull/1), starting with checkpoint `806244a7de710689d9c8938adfaf75482ac7fb7c`. The first clean database job passed; the application job exposed a Linux-only test-fixture failure described below. It is not yet a required branch check, and the SaaS migration has not been deployed.
+Updated 2026-08-28. The workflow is active on GitHub in [draft PR #1](https://github.com/chowdarykakarla7890-del/vibe-coding-platform/pull/1). The [full Linux run](https://github.com/chowdarykakarla7890-del/vibe-coding-platform/actions/runs/33138122112) passed at commit `bba99b11b3461b4790afc855a0663d26029d632c` after repairing a Linux-only test fixture. The aggregate check is now required on protected `main`; the draft remains unmerged and the SaaS migration is not deployed.
 
 The checkpoint was created with an alternate Git index and a separate `codex/saas-release-validation` branch. The original dirty `main` worktree and its staging state were preserved. This branch is for review and validation, not automatic production promotion.
 
@@ -15,6 +15,8 @@ Latest hosted HTTP/database regression: `verify-auth-projects.mjs` passes after 
 1. **Application checks:** Node `24.18.0`, pnpm `11.19.0`, frozen clean install, lint, route type generation, TypeScript, the non-live Vitest suite, high/critical production dependency audit, production build and a local HTTP smoke test. Public Supabase values are deliberately non-production fixtures; no AI or VM credentials are provided. The resulting build is not deployable customer software.
 2. **Database replay and isolation:** Supabase CLI `2.116.0` starts a disposable local Docker stack, resets only that local database, replays all migrations, checks SQL compilation, runs all transactional `supabase/tests/*.sql` assertions and compares the resulting public TypeScript contract with the checked-in types. It then builds against the local database and runs the two-user authenticated API suite plus the synthetic cleanup protocol suite. No hosted project link or production database is used. An `always()` step removes only this job's local database volumes.
 3. **Required checks:** succeeds only when both jobs succeed, including when one fails or is skipped. This is a named check to require in branch protection; declaring it in YAML does not configure protection automatically.
+
+Hosted branch protection was configured and read back on 2026-08-28: `main` requires an up-to-date **Required checks** result from the GitHub Actions app (`15368`), including for administrators. Force pushes and branch deletion are disabled. No reviewer-count, merge-strategy, default-branch, Vercel integration or production-alias settings were changed. This controls GitHub changes to `main`; it does not prevent an authorized person from editing repository settings or manually deploying outside GitHub.
 
 The database type comparison ignores formatting, comments and platform-specific metadata outside `Database.public`. It does not ignore table, column, nullability, relationship or function-contract differences. Type drift fails the job rather than overwriting the checked-in file.
 
@@ -46,7 +48,17 @@ The [first Linux run](https://github.com/chowdarykakarla7890-del/vibe-coding-pla
 - The disposable database job passed: all 39 migrations replayed from empty, SQL lint, all eight transactional SQL suites, exact public database type parity, a fresh production build against local Supabase, two-user cookie-authenticated HTTP checks, and the synthetic cleanup protocol suite. Temporary accounts and the job-owned database were cleaned up.
 - Docker image pulls initially encountered registry rate limits; the CLI recovered and the database job completed. This run does not establish reliability under sustained registry throttling.
 - The application job passed clean installation, lint, route type generation and TypeScript. Vitest reported 1,944 passed, one failed, and 17 opt-in tests skipped. `command-output.test.ts` passed a 165 KB string as one argument, exceeding Linux's per-argument limit (`E2BIG`) before the encoder launched. The fixture now generates the same output inside its child process using a small Unicode argument and repeat count. Output length, stream separation, literal argument preservation and nonzero exit coverage are unchanged; no application behavior was weakened to bypass the test.
-- The corrected command-output and release-pipeline tests pass locally (19 tests). A new full GitHub run is required before calling the application job green. The aggregate Required checks correctly failed while one job failed; subsequent audit/build/smoke steps in that application job were not run.
+- The corrected command-output and release-pipeline tests pass locally (19 tests). The aggregate Required checks correctly failed while one job failed; subsequent audit/build/smoke steps in that first application job were not run.
+
+The [second full Linux run](https://github.com/chowdarykakarla7890-del/vibe-coding-platform/actions/runs/33138122112) at `bba99b11b3461b4790afc855a0663d26029d632c` passed both jobs and the aggregate check:
+
+- Clean Node 24.18.0 / pnpm 11.19.0 install, lint, route type generation and TypeScript.
+- 1,945 Vitest tests passed; 17 explicitly opt-in live tests were skipped. The repaired real command encoder test passed on Linux without reducing its 165 KB Unicode payload.
+- Production dependency audit: no known vulnerabilities found.
+- Production build, signed-out HTTP smoke checks, and generated dependency/config drift gate.
+- A second independent empty-database replay, SQL lint, all eight SQL assertion files, public type parity, local-database production build, two-user HTTP isolation and synthetic cleanup tests. Disposable test users and database volumes were cleaned up.
+
+These are reproducible application/database gates, not paid AI/VM, hosted OAuth/email, browser accessibility, scheduler deployment or production-release evidence. Fixture CI builds remain non-deployable.
 
 ## Earlier local verification
 
@@ -60,8 +72,8 @@ The [first Linux run](https://github.com/chowdarykakarla7890-del/vibe-coding-pla
 ## Still required before release
 
 1. Review the complete checkpoint in draft PR #1. The branch is pushed and the pull-request workflow is active; it must not be merged or deployed solely because it exists.
-2. Complete a green full Linux run after the command-output fixture repair. Clean Docker replay, SQL lint and generated-type parity now have real GitHub evidence, rather than being inferred from hosted tests; the complete application pipeline still needs to pass.
-3. Require the workflow's **Required checks** in the protected production branch. Review the repository's Vercel Git integration too: a checks-only workflow does not itself prevent independent automatic deployments or manual production pushes.
+2. Keep the branch's latest commit green. Both application and clean database gates now have full Linux evidence; any subsequent source changes must pass again.
+3. Reconcile the repository's separate Vercel Git integration with the reviewed application deployment before enabling a release. Required checks are enforced on `main`, but the checks-only workflow does not itself prevent independent automatic previews or manual production deployments.
 4. Keep Preview isolated from Production, complete provider funding/credential rotation and OAuth/email checks, then verify the actual deployment environment and remaining [SaaS release gates](./saas-release-gates.md).
 5. Do not promote the fixture CI artifact. A Preview build compiled with Preview database bindings must not be silently reused as a Production build. Verify the target-bound build and runtime configuration explicitly before assigning the production domain.
 

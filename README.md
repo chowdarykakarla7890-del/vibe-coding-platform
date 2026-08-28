@@ -123,7 +123,7 @@ pnpm audit --prod --audit-level=high
 pnpm build
 ```
 
-The checks-only GitHub workflow adds clean installation, isolated database replay, RLS/API checks and production HTTP smoke tests. See [CI verification and activation](docs/continuous-integration.md); the workflow is not yet activated on GitHub and does not deploy the application.
+The checks-only GitHub workflow adds clean installation, isolated database replay, RLS/API checks and production HTTP smoke tests. It is active in draft PR #1; see [CI results and release restrictions](docs/continuous-integration.md). The workflow does not deploy the application, and its disposable-database build must never be promoted to Production.
 
 Supabase configuration and sign-in are required to open the workspace. The AI key and Vercel Sandbox access are additionally required for live tutor projects.
 
