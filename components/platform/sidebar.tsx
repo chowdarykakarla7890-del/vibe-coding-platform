@@ -101,7 +101,7 @@ export function PlatformShell({ children }: { children: ReactNode }) {
         <DialogContent
           aria-describedby={undefined}
           showCloseButton={false}
-          className="inset-y-0 left-0 top-0 flex h-dvh max-h-dvh w-[238px] max-w-[calc(100vw-2rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-r border-border bg-card p-0 sm:max-w-[238px] motion-reduce:animate-none"
+          className="inset-y-0 left-0 top-0 flex h-dvh max-h-dvh w-[238px] max-w-[calc(100vw-2rem)] translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-r border-border bg-card p-0 sm:max-w-[238px]"
         >
           <DialogTitle className="sr-only">Navigation</DialogTitle>
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-3">
