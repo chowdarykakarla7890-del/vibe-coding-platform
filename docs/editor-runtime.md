@@ -30,10 +30,14 @@ Actual-browser accessibility checks also exposed unnamed native diff inputs and
 low-contrast keywords on the default diff backgrounds. Both panes now have
 explicit accessible names, diff backgrounds retain readable syntax contrast,
 and the selected-file heading uses the existing readable muted-text token.
-Both views use Monaco's supported textarea input backend instead of Chromium's
-experimental native EditContext, which failed the unfocused read-only input
-naming checks. The browser verifies actual input names as well as running axe;
-visually hidden native text inputs are not required to appear as visible fields.
+Further browser diagnostics showed empty labels with both native EditContext
+and textarea inputs. Monaco's diff configuration updates can clear the
+construction-only labels, so a guarded configuration listener maintains each
+name through the public editor API and disposes with the diff editor. Valid
+accessibility-help suffixes are retained, and already-correct labels trigger no
+updates. The input backend remains unchanged. The browser verifies actual input
+names as well as running axe; visually hidden text inputs are not required to
+appear as visible fields.
 
 ## Verification scope
 

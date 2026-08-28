@@ -13,6 +13,7 @@ import { sourceReceiptSchema, sourceRevisionSchema } from '@/lib/source-version'
 import { readWithDeadline } from '@/lib/abortable-read'
 import { awaitMutationReceipt, MutationReceiptTimeoutError } from '@/lib/mutation-receipt'
 import { defineEditorTheme, EDITOR_THEME } from '@/lib/editor/theme'
+import { labelDiffEditors } from '@/lib/editor/accessibility'
 
 const MonacoEditor = dynamic(() => import('./monaco-runtime'), {
   ssr: false,
@@ -342,6 +343,7 @@ function FileEditor({
         ) : (
           <MonacoDiffEditor
             beforeMount={defineEditorTheme}
+            onMount={labelDiffEditors}
             height="100%"
             language={detectLanguage(path)}
             modified={draft}
@@ -357,9 +359,6 @@ function FileEditor({
 
 const editorOptions = {
   automaticLayout: true,
-  // Chromium's experimental native EditContext leaves unfocused read-only
-  // diff inputs unnamed. Use Monaco's supported textarea backend consistently.
-  editContext: false,
   fontFamily: 'var(--font-geist-mono), Geist Mono, monospace',
   fontLigatures: true,
   fontSize: 13,
