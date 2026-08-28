@@ -7,6 +7,7 @@ export async function checkBrowserSecurity({ browser, base, expect }) {
   const context = await browser.newContext({ baseURL: base, bypassCSP: false })
   const page = await context.newPage()
   const errors = []
+  let phase = 'document navigation'
   let probing = false, outsideRequests = 0
   page.on('pageerror', () => errors.push('pageerror'))
   page.on('console', message => {
@@ -23,10 +24,13 @@ export async function checkBrowserSecurity({ browser, base, expect }) {
   await page.route(`${frameOrigin}/`, route => route.fulfill({ contentType: 'text/html', body: `<script>let parentReadable=false;try{parent.document.body;parentReadable=true}catch{}parent.postMessage({cspFrameLoaded:true,parentReadable},${JSON.stringify(base)})</script>` }))
   try {
     const response = await page.goto('/sign-in')
+    phase = 'document nonce validation'
     checkHtmlSecurity(await response.headerValue('content-security-policy'), await response.text())
+    phase = 'sign-in hydration'
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue with email', exact: true })).toBeEnabled()
     assert.equal(errors.length, 0, 'Normal sign-in must initialize without CSP failures.')
+    phase = 'isolated script and frame probes'
     probing = true
     await page.evaluate(({ frameOrigin }) => {
       window.__cspViolations = []
@@ -52,6 +56,7 @@ export async function checkBrowserSecurity({ browser, base, expect }) {
       denied.src = 'https://notallowed.invalid/frame'; document.body.appendChild(denied)
     }, { frameOrigin })
     await expect.poll(() => page.evaluate(() => Boolean(window.__cspChildExecuted && window.__cspEvalBlocked && window.__cspFetchBlocked && window.__cspFrame?.cspFrameLoaded))).toBe(true)
+    phase = 'probe result validation'
     const result = await page.evaluate(() => ({ inline: Boolean(window.__cspInlineExecuted), handler: Boolean(window.__cspHandlerExecuted),
       eval: Boolean(window.__cspEvalExecuted), trusted: window.__cspTrustedExecuted, parentReadable: window.__cspFrame.parentReadable,
       violations: window.__cspViolations }))
@@ -60,5 +65,16 @@ export async function checkBrowserSecurity({ browser, base, expect }) {
     assert.equal(outsideRequests, 0, 'Forbidden connections/frames must be blocked before network dispatch.')
     assert.equal(errors.length, 0, 'Only deliberate CSP violations are expected in this isolated probe.')
     console.log('PASS: production nonce bootstrap, trusted dynamic scripts, blocked inline/handler/eval/connect/frame probes and isolated allowed preview frame.')
+  } catch {
+    // Boolean probe results and known directive names only. Never print an
+    // assertion payload, document HTML, nonce, URL, cookies or console text.
+    const evidence = await page.evaluate(() => ({
+      trusted: Boolean(window.__cspTrustedExecuted), child: Boolean(window.__cspChildExecuted),
+      evalBlocked: Boolean(window.__cspEvalBlocked), fetchBlocked: Boolean(window.__cspFetchBlocked),
+      frameLoaded: Boolean(window.__cspFrame?.cspFrameLoaded),
+      violations: (window.__cspViolations ?? []).filter(value => ['script-src-elem', 'script-src-attr', 'script-src', 'connect-src', 'frame-src'].includes(value)),
+    })).catch(() => ({ pageUnavailable: true }))
+    console.error(JSON.stringify({ securityProbe: phase, evidence, errors, outsideRequests }))
+    throw new Error('Isolated browser security probe failed.')
   } finally { await context.close() }
 }
