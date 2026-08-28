@@ -139,6 +139,8 @@ export function ProjectSwitcher() {
       </PopoverTrigger>
       <PopoverContent
         aria-label="Projects"
+        aria-hidden={open ? undefined : true}
+        inert={!open}
         align="start"
         onCloseAutoFocus={event => {
           // The newly opened dialog owns focus; a closing popover must not

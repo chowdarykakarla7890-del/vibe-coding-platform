@@ -19,6 +19,31 @@ beforeEach(() => {
   learning.createProject.mockResolvedValue({ id: 'b', title: 'New project' }); learning.updateProject.mockResolvedValue(undefined)
 })
 afterEach(() => { cleanup(); vi.resetAllMocks() })
+it('removes the closing project menu from accessibility and focus while a dialog opens', async () => {
+  // Radix keeps exit-animated content mounted. Simulate that lifecycle, which
+  // ordinary jsdom tests miss because the application CSS is not loaded.
+  const computedStyle = window.getComputedStyle.bind(window)
+  const style = vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const result = computedStyle(element, pseudo)
+    if (element.getAttribute('data-slot') !== 'popover-content') return result
+    return new Proxy(result, { get: (target, property) => property === 'animationName'
+      ? element.getAttribute('data-state') === 'open' ? 'enter' : 'exit'
+      : Reflect.get(target, property) })
+  })
+  try {
+    render(<ProjectSwitcher />)
+    fireEvent.click(screen.getByRole('button', { name: 'My playground' }))
+    const menu = screen.getByRole('dialog', { name: 'Projects' })
+    fireEvent.click(screen.getByRole('button', { name: 'New' }))
+    const name = await screen.findByRole('textbox', { name: 'Project name' })
+    await waitFor(() => expect(document.activeElement).toBe(name))
+    expect(menu.isConnected).toBe(true)
+    expect(menu.getAttribute('data-state')).toBe('closed')
+    expect(menu.getAttribute('aria-hidden')).toBe('true')
+    expect(menu.hasAttribute('inert')).toBe(true)
+    expect(screen.queryByRole('button', { name: 'My playground (playground)' })).toBeNull()
+  } finally { cleanup(); style.mockRestore() }
+})
 it.each(['New', 'Rename'])('labels the %s project input and permits keyboard form submission', async action => {
   render(<ProjectSwitcher />)
   fireEvent.click(screen.getByRole('button', { name: 'My playground' }))
