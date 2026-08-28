@@ -30,6 +30,9 @@ no source, archive, authentication data or raw page exception is published in lo
 - Source/archive import, archive export and imported-history dialogs return
   keyboard focus to the project switcher. Opening a recovered project hands
   focus across the workspace's asynchronous remount.
+- Shared buttons no longer animate disabled opacity into the enabled state and
+  honor reduced motion. Browser checks assert the resulting computed styles;
+  normal color transitions and the existing palette remain unchanged.
 
 Focused tests first reproduced five source-export failures and two focus failures.
 Their repairs are verified locally; clean build/browser evidence is recorded

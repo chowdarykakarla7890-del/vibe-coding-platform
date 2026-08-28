@@ -82,6 +82,17 @@ export async function checkBrowserRecovery({ account, projectId, admin, base, ex
     await page.reload()
     const expired = page.getByRole('dialog', { name: 'Sandbox expired', exact: true })
     await expect(expired).toBeVisible()
+    // A button becoming enabled must not fade through disabled opacity. This
+    // account also requests reduced motion: shared controls must honor it.
+    const controls = await page.locator('button.h-auto.items-start.text-left').evaluateAll(buttons => buttons.map(button => ({
+      disabled: button.disabled, opacity: getComputedStyle(button).opacity,
+      transition: getComputedStyle(button).transitionProperty,
+    })))
+    assert.equal(controls.length, 7)
+    for (const control of controls) {
+      assert.equal(control.transition, 'none')
+      if (!control.disabled) assert.equal(control.opacity, '1')
+    }
     await scan(page, 'expired sandbox recovery dialog')
     await dismissExpiry()
     await page.getByRole('button', { name: 'File recovery.txt', exact: true }).click()

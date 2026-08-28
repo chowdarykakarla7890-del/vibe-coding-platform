@@ -2,6 +2,13 @@ import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { buttonVariants } from '@/components/ui/button'
 
+it('does not fade enabled controls through disabled opacity and respects reduced motion', () => {
+  const classes = buttonVariants().split(' ')
+  expect(classes).not.toContain('transition-all')
+  expect(classes).toContain('transition-colors')
+  expect(classes).toContain('motion-reduce:transition-none')
+})
+
 const css = readFileSync('app/globals.css', 'utf8')
 function luminance(color: number[]) {
   const channels = color.map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)

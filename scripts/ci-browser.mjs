@@ -84,6 +84,12 @@ async function signIn(account, next) {
 
 async function scan(page, label) {
   const results = await new AxeBuilder({ page, axeSource: isolatedAxeSource }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  if (results.violations.length && label === 'expired sandbox recovery dialog') {
+    console.error(JSON.stringify({ recoveryControlState: await page.locator('button.h-auto.items-start.text-left').evaluateAll(buttons => buttons.map(button => ({
+      disabled: button.disabled, opacity: getComputedStyle(button).opacity, transition: getComputedStyle(button).transitionProperty,
+      hidden: Boolean(button.closest('[aria-hidden="true"], [inert]')), openModals: document.querySelectorAll('[role="dialog"][data-state="open"]').length,
+    }))) }))
+  }
   if (results.violations.length) console.error(JSON.stringify({ accessibility: label, violations: results.violations.map(item => ({ id: item.id, impact: item.impact, targets: item.nodes.map(node => node.target), contrast: item.nodes.flatMap(node => node.any.filter(check => check.id === 'color-contrast').map(check => ({ target: node.target, foreground: check.data?.fgColor, background: check.data?.bgColor, ratio: check.data?.contrastRatio, expected: check.data?.expectedContrastRatio }))) })) }))
   assert.equal(results.violations.length, 0, 'Automatically detectable WCAG A/AA issues must be fixed, not excluded.')
 }
