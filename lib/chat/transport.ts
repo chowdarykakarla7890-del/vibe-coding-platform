@@ -2,8 +2,8 @@ import { DefaultChatTransport } from 'ai'
 import type { ChatUIMessage } from '@/components/chat/types'
 import { cloudOperation } from '@/lib/learning/cloud-request'
 
-export function createProjectChatTransport(projectId: string) {
-  const account = cloudOperation()
+export function createProjectChatTransport(projectId: string, signal?: AbortSignal) {
+  const account = cloudOperation(signal)
   return new DefaultChatTransport<ChatUIMessage>({
     fetch: (input, init) => account.fetch(input, init),
     prepareSendMessagesRequest: ({ messages, body, trigger }) => {

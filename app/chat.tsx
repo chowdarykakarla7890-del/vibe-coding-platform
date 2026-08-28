@@ -37,7 +37,7 @@ interface Props {
 
 export function Chat({ className }: Props) {
   const [input, setInput] = useLocalStorageValue('prompt-input')
-  const { chatState, interrupted, retry, stalled, stop } = useSharedChatContext()
+  const { chatState, interrupted, operation, recoveryError, retry, stalled, stop } = useSharedChatContext()
   const { modelId, reasoningEffort } = useSettings()
   const { activeProject } = useLearning()
   const { messages, sendMessage, status } = chatState
@@ -98,7 +98,7 @@ export function Chat({ className }: Props) {
           Task
         </div>
         <div className="ml-auto font-mono text-xs text-muted-foreground">
-          [{stalled ? 'stalled' : interrupted ? 'interrupted' : status}]
+          [{operation ?? (recoveryError ? 'error' : stalled ? 'stalled' : interrupted ? 'interrupted' : status)}]
         </div>
       </PanelHeader>
 
@@ -146,6 +146,8 @@ export function Chat({ className }: Props) {
               hasAssistantOutput={hasAssistantOutput}
               interrupted={interrupted}
               modelName={modelName}
+              operation={operation}
+              recoveryError={recoveryError}
               onRetry={retryResponse}
               onStop={() => void stop()}
               stalled={stalled}

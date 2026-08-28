@@ -92,8 +92,8 @@ export async function loadChat(projectId: string, signal?: AbortSignal) {
   return decodeChatRows(rows.slice(-200))
 }
 
-export async function stopProjectChat(projectId: string, messageId: string) {
-  await cloudOperation().request(`/api/projects/${projectId}/messages/stop`, z.object({ stopped: z.literal(true) }), 'POST', { messageId })
+export async function stopProjectChat(projectId: string, messageId: string, signal?: AbortSignal) {
+  await cloudOperation(signal).request(`/api/projects/${projectId}/messages/stop`, z.object({ stopped: z.literal(true) }), 'POST', { messageId })
 }
 
 export async function createProject(project: LearningProject, signal?: AbortSignal) {

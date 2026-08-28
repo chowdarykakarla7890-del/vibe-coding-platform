@@ -19,6 +19,7 @@ export function hasCurrentAssistantOutput(messages: ChatUIMessage[]) {
     switch (part.type) {
       case 'text':
       case 'reasoning':
+        return part.text.trim().length > 0
       case 'tool-readFiles':
       case 'data-generating-files':
       case 'data-create-sandbox':
@@ -36,6 +37,8 @@ export function ChatProgress({
   hasAssistantOutput,
   interrupted,
   modelName,
+  operation,
+  recoveryError,
   onRetry,
   onStop,
   stalled,
@@ -44,12 +47,24 @@ export function ChatProgress({
   hasAssistantOutput: boolean
   interrupted: boolean
   modelName: string
+  operation?: 'stopping' | 'reconnecting'
+  recoveryError?: string
   onRetry: () => void
   onStop: () => void
   stalled: boolean
   status: ChatStatus
 }) {
   const isActive = status === 'submitted' || status === 'streaming'
+
+  if (operation) {
+    return <div className="mr-5 flex min-h-10 items-center gap-2 rounded-md border border-border px-3 py-2 font-mono text-xs text-muted-foreground" aria-busy="true">
+      <div role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-2">
+        <Loader aria-hidden="true" className="shrink-0 motion-reduce:animate-none" size={13} />
+        {operation === 'stopping' ? 'Stopping and checking saved response…' : 'Reconnecting to saved response…'}
+      </div>
+      <StopButton onStop={onStop} disabled />
+    </div>
+  }
 
   if (isActive) {
     return (
@@ -132,7 +147,7 @@ export function ChatProgress({
     )
   }
 
-  if (!(stalled || interrupted || status === 'error')) return null
+  if (!(recoveryError || stalled || interrupted || status === 'error')) return null
 
   return (
     <div
@@ -140,11 +155,11 @@ export function ChatProgress({
       className="flex items-center gap-2 rounded-md border border-amber-900/60 bg-amber-950/20 px-3 py-2 font-mono text-xs text-amber-200"
     >
       <span className="min-w-0 flex-1">
-        {stalled
+        {recoveryError ?? (stalled
           ? 'The tutor stopped after 90 seconds without progress.'
           : interrupted
             ? 'Generation was stopped before it finished.'
-            : 'The tutor could not finish this response.'}
+            : 'The tutor could not finish this response.')}
       </span>
       <Button
         className="h-7 gap-1.5 px-2 text-xs"
@@ -159,12 +174,13 @@ export function ChatProgress({
   )
 }
 
-function StopButton({ onStop }: { onStop: () => void }) {
+function StopButton({ onStop, disabled }: { onStop: () => void; disabled?: boolean }) {
   return (
     <Button
       aria-label="Stop tutor response"
       className="h-7 gap-1.5 px-2 text-xs"
       onClick={onStop}
+      disabled={disabled}
       type="button"
       variant="outline"
     >
