@@ -8,5 +8,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Public, versioned editor code contains no user data and must not depend on
   // an auth refresh (or redirect a worker/script request into a sign-in page).
-  matcher: ['/((?!api|_next/static|_next/image|vendor/monaco/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Exempt actual public assets, not arbitrary image-looking page paths.
+  matcher: ['/((?!api(?:/|$)|_next/static(?:/|$)|_next/image(?:/|$)|vendor/monaco/|favicon\\.ico$|(?:window|globe|next|vercel|file)\\.svg$).*)'],
 }

@@ -5,22 +5,31 @@ import { getPublicSupabaseConfig } from './config'
 import { requestOrigin } from '@/lib/auth/request-origin'
 import { safeNextPath } from '@/lib/auth/redirect'
 import { authFetch, AuthRequestInterruptedError, AUTH_UNAVAILABLE_MESSAGE, hasVerifiedClaims, verifiedUser, withAuthDeadline } from '@/lib/auth/session-check'
+import { BOTID_PREFIX, contentSecurityPolicy, createNonce } from '@/lib/content-security-policy'
 
 const AUTH_HANDLERS = new Set(['/auth/callback', '/auth/sign-out'])
-// Must match withBotId's SDK-owned rewrite prefix (botid/next/config).
-// Challenge assets/proxy requests must load before the user has signed in.
-const BOTID_PREFIX = '/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3'
 
 export async function updateSession(request: NextRequest) {
   const origin = requestOrigin(request)
   if (!origin) return new NextResponse('Invalid request authority.', { status: 400, headers: { 'Cache-Control': 'private, no-store' } })
-  let response = NextResponse.next({ request })
   if (request.nextUrl.pathname === BOTID_PREFIX || request.nextUrl.pathname.startsWith(`${BOTID_PREFIX}/`)) {
-    return response
+    // Preserve the SDK's own challenge/iframe policy and anonymous access.
+    return NextResponse.next({ request })
   }
+  const nonce = createNonce()
+  const policy = contentSecurityPolicy(nonce, { origin, supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    development: process.env.NODE_ENV === 'development' })
+  // Overwrite spoofed incoming values. Every response recreation below forwards
+  // these exact headers alongside refreshed cookies to Next's SSR renderer.
+  request.headers.set('x-nonce', nonce)
+  request.headers.set('Content-Security-Policy', policy)
+  let response = NextResponse.next({ request })
   function finish(next: NextResponse) {
     response.cookies.getAll().forEach((cookie) => next.cookies.set(cookie))
     next.headers.set('Cache-Control', 'private, no-store')
+    next.headers.set('CDN-Cache-Control', 'private, no-store')
+    next.headers.set('Vercel-CDN-Cache-Control', 'private, no-store')
+    next.headers.set('Content-Security-Policy', policy)
     return next
   }
   // Code exchange and CSRF-protected sign-out own their checks. A stale old

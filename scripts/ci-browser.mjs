@@ -7,6 +7,7 @@ import { isolatedBuildEnvironment } from './ci-smoke.mjs'
 import { checkBrowserEditor } from './check-browser-editor.mjs'
 import { browserDiagnostic } from './browser-diagnostics.mjs'
 import { isolatedAxeSource } from './browser-axe.mjs'
+import { checkBrowserSecurity } from './check-browser-security.mjs'
 
 assertBrowserCiEnvironment(process.env, readdirSync('.'))
 const { chromium, expect } = await import('@playwright/test')
@@ -111,6 +112,9 @@ async function chooseProject(page, title) {
 
 try {
   browser = await chromium.launch({ env: isolatedBuildEnvironment() })
+  await step('production CSP enforcement and compatible script/frame loading', async () => {
+    await checkBrowserSecurity({ browser, base, expect })
+  })
   const a = await actor('a')
   const b = await actor('b')
   const titleA = 'Browser project A', titleB = 'Browser project B'

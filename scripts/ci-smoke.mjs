@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { installedMonaco } from './prepare-monaco.mjs'
+import { checkHtmlSecurity } from './check-html-security.mjs'
 
 /** @param {Record<string, string | undefined>} env */
 export function isolatedBuildEnvironment(env = process.env) {
@@ -55,7 +56,12 @@ export async function checkAnonymousRoutes(base, fetcher = fetch) {
   }
   const login = await get('/sign-in')
   assert.equal(login.status, 200)
-  assert((await login.text()).includes('CodeTutor'))
+  const html = await login.text()
+  assert(html.includes('CodeTutor'))
+  const nonce = checkHtmlSecurity(login.headers.get('content-security-policy'), html)
+  assert.match(login.headers.get('cache-control') ?? '', /no-store/)
+  const nextLogin = await get('/sign-in')
+  assert.notEqual(checkHtmlSecurity(nextLogin.headers.get('content-security-policy'), await nextLogin.text()), nonce, 'A fresh document must not reuse a nonce.')
   const workspace = await get('/playground')
   assert.equal(workspace.status, 307)
   assert.equal(new URL(workspace.headers.get('location'), base).pathname, '/sign-in')

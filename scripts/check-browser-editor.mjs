@@ -53,6 +53,10 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     const font = await page.locator('.monaco-editor .view-lines').first().evaluate(element => getComputedStyle(element).fontFamily)
     assert.match(font, /monospace/)
     await input.focus()
+    // A created Worker alone does not prove its imported language service ran.
+    await page.keyboard.press('ControlOrMeta+A')
+    await page.keyboard.insertText('export const count: number = "not a number";\n')
+    await expect.poll(() => page.evaluate(() => window.monaco.editor.getModelMarkers({}).some(marker => String(marker.code) === '2322')), { timeout: 20_000 }).toBe(true)
     await page.keyboard.press('ControlOrMeta+A')
     await page.keyboard.insertText(modified)
     await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()

@@ -1,6 +1,7 @@
 import { Toaster } from '@/components/ui/sonner'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 import './globals.css'
 
 const title = 'CodeTutor Studio — Learn by Building'
@@ -26,9 +27,11 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  // A per-request nonce must never be baked into a statically rendered shell.
+  await connection()
   return (
     <html lang="en">
       <body className="antialiased">
