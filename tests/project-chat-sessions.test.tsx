@@ -147,7 +147,7 @@ it('aborts a deleted project stream and disposes its watchdog', async () => {
 
 async function startAssistant(stream: NonNullable<ReturnType<typeof streams.get>>) {
   await act(async () => {
-    stream.emit({ type: 'start', messageId: 'assistant-a', messageMetadata: { model: 'Tutor', persistenceStatus: 'pending' } },
+    stream.emit({ type: 'start', messageId: 'assistant-a', messageMetadata: { model: 'Tutor', persistenceStatus: 'pending', requestId: accountA } },
       { type: 'text-start', id: 'text' }, { type: 'text-delta', id: 'text', delta: 'Partial response' })
     await vi.advanceTimersByTimeAsync(50)
   })
@@ -180,7 +180,7 @@ it('keeps the authoritative completed answer when it wins a Stop race', async ()
   await startAssistant(await submit())
   fixture.load.mockResolvedValueOnce(savedResponse('complete'))
   fireEvent.click(screen.getByRole('button', { name: 'Stop' })); await flush()
-  expect(fixture.stop).toHaveBeenCalledWith('project-a', 'assistant-a', expect.anything())
+  expect(fixture.stop).toHaveBeenCalledWith('project-a', 'assistant-a', accountA, expect.anything())
   expect(state()).toMatchObject({ status: 'ready', interrupted: false, persistenceStatus: 'complete', text: 'Saved response' })
 })
 
@@ -222,7 +222,7 @@ it.each(['account', 'unmount', 'delete'] as const)('cancels a pending Stop and i
   let finish!: () => void
   fixture.stop.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
   fireEvent.click(screen.getByRole('button', { name: 'Stop' })); await flush()
-  const stopSignal = fixture.stop.mock.calls[0][2] as AbortSignal
+  const stopSignal = fixture.stop.mock.calls[0][3] as AbortSignal
   if (change === 'account') act(() => setCloudAccount(accountB))
   if (change === 'unmount') view.unmount()
   if (change === 'delete') { fixture.learning.projects = [{ id: 'project-b' }]; await switchProject(view, 'project-b') }
@@ -241,7 +241,7 @@ it('bounds a missing Stop receipt and permits only read reconciliation after tim
   fixture.stop.mockImplementationOnce(() => new Promise(() => {}))
   fireEvent.click(screen.getByRole('button', { name: 'Stop' })); await flush()
   await act(async () => { await vi.advanceTimersByTimeAsync(20_001) })
-  expect((fixture.stop.mock.calls[0][2] as AbortSignal).aborted).toBe(true)
+  expect((fixture.stop.mock.calls[0][3] as AbortSignal).aborted).toBe(true)
   expect(state()).toMatchObject({ status: 'error', persistenceStatus: 'pending' })
   fixture.load.mockResolvedValueOnce(savedResponse('pending'))
   fireEvent.click(screen.getByRole('button', { name: 'Retry' })); await flush()
@@ -308,7 +308,7 @@ it('keeps independent watchdogs for simultaneous projects and resets only on the
   expect(a.signal.aborted).toBe(false)
   await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
   expect(a.signal.aborted).toBe(true)
-  expect(fixture.stop).toHaveBeenCalledWith('project-a', 'assistant-a', expect.anything())
+  expect(fixture.stop).toHaveBeenCalledWith('project-a', 'assistant-a', accountA, expect.anything())
   await switchProject(view, 'project-a')
   expect(state()).toMatchObject({ status: 'ready', stalled: true })
 })

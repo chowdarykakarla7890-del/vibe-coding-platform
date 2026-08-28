@@ -53,3 +53,11 @@ it('does not reinterpret failed or malformed reads as an empty conversation', as
   await expect(loadChat(crypto.randomUUID())).rejects.toThrow('Storage unavailable')
   await expect(loadChat(crypto.randomUUID())).rejects.toThrow('invalid response')
 })
+
+it('preserves the server generation identity for a fenced Stop without adding it to legacy messages', async () => {
+  const requestId = crypto.randomUUID()
+  const row = chatRowSchema.parse({ id: 'assistant', role: 'assistant', parts: [], status: 'pending', model_id: null,
+    ordinal: 1, updated_at: new Date().toISOString(), request_id: requestId })
+  expect((await decodeChatRows([row]))[0].metadata?.requestId).toBe(requestId)
+  expect((await decodeChatRows([{ ...row, request_id: null }]))[0].metadata?.requestId).toBeUndefined()
+})

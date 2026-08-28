@@ -8,7 +8,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     await requireOwnedProject(projectId, auth)
     const before = new URL(request.url).searchParams.get('before')
     if (before && (!/^\d+$/.test(before) || !Number.isSafeInteger(Number(before)) || Number(before) < 1)) throw new ApiError(400, 'INVALID_CURSOR', 'Choose a valid conversation cursor.')
-    let query = auth.supabase.from('messages').select('id,role,parts,status,model_id,ordinal,updated_at')
+    let query = auth.supabase.from('messages').select('id,role,parts,status,model_id,ordinal,updated_at,request_id')
       .eq('user_id', auth.user.id).eq('project_id', projectId).order('ordinal', { ascending: false }).limit(21)
     if (before) query = query.lt('ordinal', Number(before))
     const { data, error } = await query

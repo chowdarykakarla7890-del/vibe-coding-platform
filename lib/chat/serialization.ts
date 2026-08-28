@@ -8,6 +8,7 @@ export const chatRowSchema = z.object({
   id: z.string(), role: z.enum(['user', 'assistant']), parts: z.array(z.unknown()),
   status: z.enum(['pending', 'complete', 'failed', 'interrupted']),
   model_id: z.string().nullable(), ordinal: z.number().int().positive(),
+  request_id: z.string().uuid().nullish(),
   updated_at: z.string().datetime({ offset: true }),
 })
 export const chatPageSchema = z.object({ messages: z.array(chatRowSchema).max(200), nextCursor: z.number().int().positive().nullable() })
@@ -24,6 +25,7 @@ export async function decodeChatRows(rows: z.infer<typeof chatRowSchema>[]): Pro
   const messages = rows.map((row) => {
     const metadata: ChatUIMessage['metadata'] = row.role === 'assistant' ? {
       model: row.model_id ? MODEL_NAMES[row.model_id] ?? row.model_id : 'Tutor',
+      ...(row.request_id ? { requestId: row.request_id } : {}),
       persistenceStatus: row.status === 'pending' && Date.parse(row.updated_at) < Date.now() - 120_000 ? 'interrupted' : row.status,
     } : undefined
     return {

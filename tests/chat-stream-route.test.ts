@@ -86,6 +86,7 @@ describe('durable chat route with the real AI SDK stream processor', () => {
     const reader = response.body!.getReader()
     const start = new TextDecoder().decode((await reader.read()).value)
     expect(start).toContain(assistantId)
+    expect(start).toContain(`"requestId":"${response.headers.get('x-request-id')}"`)
     expect(start).not.toContain('A loop repeats work.')
     expect(response.headers.get('x-ratelimit-limit')).toBe('10')
     await vi.waitFor(() => expect(output.model.doStreamCalls).toHaveLength(1))

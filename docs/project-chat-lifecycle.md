@@ -15,6 +15,8 @@ Stop aborts local streaming immediately. If input preparation has not reached th
 
 When an assistant ID is available, the controller requests server interruption and reads authoritative history. A Stop receipt means the operation was processed, not that it necessarily changed a pending response: completion can win the race. The client must not manufacture `persistenceStatus: interrupted` after either a successful or failed receipt.
 
+Stop additionally requires the generation's UUID `requestId`, supplied by stream metadata and owner-authorized saved history. The database update matches project, account, message ID, generation ID, assistant role and pending status together. Retry reuses an assistant row but changes its request ID, so an old Stop cannot affect the newer attempt. Legacy messages without that identity remain readable; the client must reconnect before attempting Stop. The mutation receipt is bounded to ten seconds server-side and twenty seconds client-side; a missing receipt does not imply rollback.
+
 The interface displays Stopping or Reconnecting while the corresponding operation is pending. New submissions, duplicate Stop calls and duplicate Retry calls are blocked synchronously, including stale event handlers. An unconfirmed Stop displays explicit recovery guidance and prevents another generation. Retry first reads saved history; it does not blindly repeat the mutation or launch a second paid generation. A still-pending saved response resumes bounded history polling. Failed polling stops until the user retries.
 
 Without an assistant ID, local Stop preserves the user message and marks the local attempt interrupted; it cannot claim a durable server interruption. The server's request cancellation, reservation rules and watchdog remain responsible for any accepted request whose initial response never reached the browser.
@@ -25,7 +27,7 @@ Without an assistant ID, local Stop preserves the user message and marks the loc
 
 `tests/chat-recovery-ui.test.tsx` covers polite progress announcements, disabled duplicate controls, truthful recovery text, completion removal and empty text/reasoning parts. The existing history-loading, transport, error-monitor, stream-route and tool-output tests remain regression gates.
 
-These are client/controller and component checks, not successful live-provider or database Stop-race evidence. The clean CI browser suite exercises real local authentication/project history, but its existing scenario does not submit a paid generation.
+`tests/chat-stop-route.test.ts` covers generation-fenced filters, validation, ownership failure, redacted failures and bounded/cancelled database waits. The disposable-database HTTP suite also checks interruption, Retry reusing the row with a new request ID, late old Stop leaving the new pending generation untouched, and completed-response preservation. CI must pass these actual database assertions before this checkpoint is accepted. The clean CI browser suite exercises real local authentication/project history, but its existing scenario does not submit a paid generation.
 
 ## Remaining release checks
 

@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         }
       },
       execute: async ({ writer }) => {
-        writer.write({ type: 'start', messageId: assistantId, messageMetadata: { model: MODEL_NAMES[modelId] ?? modelId } })
+        writer.write({ type: 'start', messageId: assistantId, messageMetadata: { model: MODEL_NAMES[modelId] ?? modelId, requestId } })
         const progressWriter = { ...writer, write: (part: Parameters<typeof writer.write>[0]) => { progress(); writer.write(part) } }
         const result = streamText({
           ...getModelOptions(modelId, { reasoningEffort }),

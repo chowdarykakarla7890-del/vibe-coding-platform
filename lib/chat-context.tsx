@@ -292,7 +292,7 @@ function ProjectChatController({
     setHistoryRefreshError(false)
     setRecoveryError(undefined)
     recoveryRequired.current = false
-    if (saved.at(-1)?.metadata?.persistenceStatus === 'complete') {
+    if (['complete', 'pending'].includes(saved.at(-1)?.metadata?.persistenceStatus ?? '')) {
       setInterrupted(false)
       setStalled(false)
     }
@@ -321,7 +321,10 @@ function ProjectChatController({
       const assistant = session.chat.messages.at(-1)
       if (assistant?.role === 'assistant') {
         recoveryRequired.current = true
-        await awaitMutationReceipt(signal => stopProjectChat(session.projectId, assistant.id, signal), session.signal, 20_000,
+        const generationId = assistant.metadata?.requestId
+        // Older saved messages may lack this field. Read the current identity
+        // first; never send an unfenced Stop against a reused assistant ID.
+        if (generationId) await awaitMutationReceipt(signal => stopProjectChat(session.projectId, assistant.id, generationId, signal), session.signal, 20_000,
           'The server has not confirmed the stop.')
         await reconcile()
       }
