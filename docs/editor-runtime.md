@@ -39,6 +39,21 @@ updates. The input backend remains unchanged. The browser verifies actual input
 names as well as running axe; visually hidden text inputs are not required to
 appear as visible fields.
 
+Real diff teardown also exposed the pinned React wrapper disposing its models
+while they were still attached to Monaco's diff widget. A minimal checked-in
+`@monaco-editor/react@4.7.0` patch detaches the model first in both ESM and
+CommonJS builds, then preserves the original keep/dispose flags and widget
+cleanup. Installed-package tests verify ordering and all keep-flag combinations;
+the browser repeatedly switches between editor and diff and checks that the
+model count returns to its starting value. The patch must be reviewed when
+upgrading the wrapper, not carried forward blindly.
+
+The editor font stack no longer references the undefined `--font-geist-mono`
+variable. That invalidated the entire CSS font declaration, allowing Monaco's
+document-body measurements and its visible text to inherit different fonts.
+An explicit monospace fallback stack keeps measurements and rendering aligned
+without an external font download.
+
 ## Verification scope
 
 - Unit tests cover pin/config alignment, asset packaging, missing/mismatched

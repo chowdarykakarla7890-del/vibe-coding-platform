@@ -47,6 +47,11 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     console.log('Editor check: load pinned runtime, type and render actual diff.')
     const input = page.getByRole('textbox', { name: 'Source editor', exact: true })
     await expect(input).toBeVisible({ timeout: 20_000 })
+    const countModels = () => page.evaluate(() => window.monaco.editor.getModels().length)
+    const initialModelCount = await countModels()
+    assert.equal(initialModelCount, 1)
+    const font = await page.locator('.monaco-editor .view-lines').first().evaluate(element => getComputedStyle(element).fontFamily)
+    assert.match(font, /monospace/)
     await input.focus()
     await page.keyboard.press('ControlOrMeta+A')
     await page.keyboard.insertText(modified)
@@ -68,6 +73,16 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     console.log('Editor check: return to editor, revert and verify asset/worker origins.')
     await page.getByRole('button', { name: 'Editor', exact: true }).click()
     await expect(input).toBeVisible()
+    await expect.poll(countModels).toBe(initialModelCount)
+    // Exercise disposal repeatedly, including a diff whose calculations may
+    // still be in flight. The final console gate rejects uncaught model errors.
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await page.getByRole('button', { name: 'Changes', exact: true }).click()
+      await expect(page.locator('.monaco-diff-editor')).toBeVisible()
+      await page.getByRole('button', { name: 'Editor', exact: true }).click()
+      await expect(input).toBeVisible()
+      await expect.poll(countModels).toBe(initialModelCount)
+    }
     await page.getByRole('button', { name: 'Revert changes', exact: true }).click()
     await expect(page.getByText('Unsaved changes', { exact: true })).toHaveCount(0)
     await scan(page, 'real Monaco editor')

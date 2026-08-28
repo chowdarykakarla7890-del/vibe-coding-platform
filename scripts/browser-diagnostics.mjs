@@ -20,5 +20,6 @@ export function browserDiagnostic(text = '', location = '') {
   // Only a packaged library filename is safe; ignore arbitrary document paths
   // and query strings (which may contain one-time authentication credentials).
   const match = `${location}\n${text}`.match(/\/vendor\/monaco\/\d+\.\d+\.\d+\/vs\/(?:[\w-]+\/)*([\w.-]+\.js)(?::(\d+):(\d+))?/)
-  return { category, ...(match ? { library: match[1], ...(match[2] ? { line: Number(match[2]), column: Number(match[3]) } : {}) } : {}) }
+  const module = text.match(/^Duplicate definition of module '(vs\/[\w./!-]{1,150})'$/)?.[1]
+  return { category, ...(module ? { module } : {}), ...(match ? { library: match[1], ...(match[2] ? { line: Number(match[2]), column: Number(match[3]) } : {}) } : {}) }
 }

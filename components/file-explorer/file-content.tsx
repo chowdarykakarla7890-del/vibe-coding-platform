@@ -359,7 +359,10 @@ function FileEditor({
 
 const editorOptions = {
   automaticLayout: true,
-  fontFamily: 'var(--font-geist-mono), Geist Mono, monospace',
+  // Font measurements happen under document.body, outside the editor. An
+  // undefined CSS variable invalidates the whole stack and yields different
+  // inherited fonts for measurement and rendering (misplaced text/cursors).
+  fontFamily: "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
   fontLigatures: true,
   fontSize: 13,
   minimap: { enabled: false },

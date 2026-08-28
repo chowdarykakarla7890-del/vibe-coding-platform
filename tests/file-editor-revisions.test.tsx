@@ -8,10 +8,10 @@ import { toast } from 'sonner'
 
 // Exercise editor state and request lifetimes without Monaco's browser worker.
 vi.mock('next/dynamic', () => ({ default: () => function TestEditor(props: {
-  value?: string; original?: string; modified?: string; onChange?: (value: string) => void; options?: { readOnly?: boolean; originalAriaLabel?: string; modifiedAriaLabel?: string }
+  value?: string; original?: string; modified?: string; onChange?: (value: string) => void; options?: { readOnly?: boolean; originalAriaLabel?: string; modifiedAriaLabel?: string; fontFamily?: string }
 }) {
   if (props.original !== undefined) return <div data-testid="comparison"><pre data-testid="original" aria-label={props.options?.originalAriaLabel}>{props.original}</pre><pre data-testid="modified" aria-label={props.options?.modifiedAriaLabel}>{props.modified}</pre></div>
-  return <textarea aria-label="Source editor" readOnly={props.options?.readOnly} value={props.value} onChange={(event) => props.onChange?.(event.target.value)} />
+  return <textarea aria-label="Source editor" style={{ fontFamily: props.options?.fontFamily }} readOnly={props.options?.readOnly} value={props.value} onChange={(event) => props.onChange?.(event.target.value)} />
 } }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -33,6 +33,8 @@ describe('revision-aware editor', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(initial()))
     render(<FileContent sandboxId="sbx_a" path="main.ts" />)
     await screen.findByRole('textbox')
+    expect(editor().style.fontFamily).toContain('monospace')
+    expect(editor().style.fontFamily).not.toContain('var(')
     fireEvent.click(screen.getByRole('button', { name: 'Changes' }))
     expect(screen.getByTestId('original').getAttribute('aria-label')).toBe('Saved version')
     expect(screen.getByTestId('modified').getAttribute('aria-label')).toBe('Your draft')

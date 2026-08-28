@@ -5,5 +5,6 @@ allowBuilds:
 overrides:
   dompurify: 3.4.13
 patchedDependencies:
+  '@monaco-editor/react@4.7.0': patches/@monaco-editor__react@4.7.0.patch
   '@vercel/sandbox@3.1.0': patches/@vercel__sandbox@3.1.0.patch
   jsonlines@0.1.1: patches/jsonlines@0.1.1.patch
