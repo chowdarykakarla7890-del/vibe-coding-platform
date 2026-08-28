@@ -37,7 +37,7 @@ interface LearningContextValue {
   activeProjectId?: string
   createProject: (input: NewProjectInput, signal?: AbortSignal) => Promise<LearningProject>
   deleteProject: (id: string) => Promise<void>
-  exportProject: (id: string) => Promise<ProjectExport>
+  exportProject: (id: string, signal?: AbortSignal) => Promise<ProjectExport>
   importProject: (data: unknown) => Promise<LearningProject>
   openImportedProject: (project: LearningProject) => void
   isReady: boolean
@@ -167,10 +167,10 @@ export function LearningProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const exportProject = useCallback(async (id: string) => {
+  const exportProject = useCallback(async (id: string, signal?: AbortSignal) => {
     const project = projects.find((item) => item.id === id)
     if (!project) throw new Error('Project not found')
-    return createProjectExport(project)
+    return createProjectExport(project, signal)
   }, [projects])
 
   const openImportedProject = useCallback((project: LearningProject) => {

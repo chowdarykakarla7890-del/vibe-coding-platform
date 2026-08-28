@@ -8,7 +8,7 @@ import { acknowledgeArchiveImport, cancelPendingArchiveImport, checkPendingArchi
 import type { ArchiveImportReceipt } from '@/lib/projects/archive-import'
 import type { LearningProject } from '@/lib/learning/types'
 
-export function ProjectArchiveImport({ onClose, onOpen, initialFile }: { onClose: () => void; onOpen: (project: LearningProject) => void; initialFile?: File }) {
+export function ProjectArchiveImport({ onClose, onOpen, initialFile, onReturnFocus }: { onClose: () => void; onOpen: (project: LearningProject) => void; initialFile?: File; onReturnFocus?: () => void }) {
   const [busy, setBusy] = useState(true), [error, setError] = useState<string>()
   const [receipt, setReceipt] = useState<ArchiveImportReceipt>(), [project, setProject] = useState<LearningProject>()
   const [file, setFile] = useState<File | undefined>(initialFile), [paused, setPaused] = useState(false)
@@ -75,7 +75,7 @@ export function ProjectArchiveImport({ onClose, onOpen, initialFile }: { onClose
       : receipt?.state === 'cancelled' ? 'Staged archive cancelled. No project was removed.'
       : 'The archive is checked before upload. Your new project appears only after every record is verified.'
   return <Dialog open onOpenChange={open => { if (!open) { task.current?.abort(); onClose() } }}>
-    <DialogContent aria-busy={busy}>
+    <DialogContent aria-busy={busy} onCloseAutoFocus={event => { if (onReturnFocus) { event.preventDefault(); onReturnFocus() } }}>
       <DialogHeader><DialogTitle>Import full project archive</DialogTitle><DialogDescription>Recover a CodeTutor NDJSON archive to your signed-in account. Existing projects and the original file stay unchanged.</DialogDescription></DialogHeader>
       <p className="text-sm text-muted-foreground">Saved source opens in a new, ungraded Playground. Chat, submissions, scores and other history are preserved in Imported history as read-only, unverified evidence. They do not replay tools, restore a running sandbox, or count toward verified progress.</p>
       {!project ? <label className="space-y-2 text-sm"><span>Full project archive (.ndjson)</span><input aria-label="Full project archive" className="block w-full rounded border border-border p-2" type="file" accept=".ndjson,application/x-ndjson" disabled={busy} onChange={event => { setFile(event.target.files?.[0]); setError(undefined) }} /></label> : null}

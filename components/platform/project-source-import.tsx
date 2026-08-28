@@ -9,7 +9,7 @@ import { MAX_SOURCE_IMPORT_FILE_BYTES, type SourceImportReceipt } from '@/lib/pr
 import { readWithDeadline } from '@/lib/abortable-read'
 import type { LearningProject } from '@/lib/learning/types'
 
-export function ProjectSourceImport({ onClose, onOpen }: { onClose: () => void; onOpen: (project: LearningProject) => void }) {
+export function ProjectSourceImport({ onClose, onOpen, onReturnFocus }: { onClose: () => void; onOpen: (project: LearningProject) => void; onReturnFocus?: () => void }) {
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string>()
   const [receipt, setReceipt] = useState<SourceImportReceipt>()
@@ -79,7 +79,7 @@ export function ProjectSourceImport({ onClose, onOpen }: { onClose: () => void; 
   }
 
   return <Dialog open onOpenChange={open => { if (!open) { task.current?.abort(); onClose() } }}>
-    <DialogContent aria-busy={busy}>
+    <DialogContent aria-busy={busy} onCloseAutoFocus={event => { if (onReturnFocus) { event.preventDefault(); onReturnFocus() } }}>
       <DialogHeader><DialogTitle>Import saved source</DialogTitle><DialogDescription>Upload a source-only CodeTutor JSON export to your signed-in account. Your existing projects and the original export file will not be changed.</DialogDescription></DialogHeader>
       <p className="text-sm text-muted-foreground">Source opens as a new, ungraded Playground project. Chat history, activity scores, sandbox credentials and running processes are not imported here. No code runs during import. For full-history NDJSON files, use Import archive instead.</p>
       {!project ? <label className="space-y-2 text-sm"><span>Source project export (.json)</span><input aria-label="Source project export" className="block w-full rounded border border-border p-2" type="file" accept="application/json,.json" disabled={busy} onChange={event => { setFile(event.target.files?.[0]); setError(undefined) }} /></label> : null}

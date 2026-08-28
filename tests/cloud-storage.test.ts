@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { cloudOperation, setCloudAccount } from '@/lib/learning/cloud-request'
-import { listFileSnapshots, listProjects, saveFileSnapshots, setUserStorageScope } from '@/lib/learning/db'
+import { exportProject, listFileSnapshots, listProjects, saveFileSnapshots, setUserStorageScope } from '@/lib/learning/db'
 import { projectRowSchema } from '@/lib/projects/serialization'
 
 afterEach(() => { setUserStorageScope(undefined); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
@@ -107,6 +107,22 @@ describe('account-owned cloud storage', () => {
     vi.stubGlobal('fetch', fetcher)
     await expect(listFileSnapshots(crypto.randomUUID(), controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('cancels source-export reads without publishing a late file snapshot', async () => {
+    setCloudAccount(crypto.randomUUID())
+    const controller = new AbortController()
+    const pending = Promise.withResolvers<Response>()
+    const fetcher = vi.fn().mockReturnValue(pending.promise)
+    vi.stubGlobal('fetch', fetcher)
+    const result = expect(exportProject({ id: crypto.randomUUID(), title: 'Export', mode: 'playground', status: 'active',
+      language: 'TypeScript', createdAt: 1, updatedAt: 1 }, controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
+    controller.abort()
+    pending.resolve(Response.json({ files: [{ path: 'a.ts', content: 'saved', updatedAt: 1, revision: 1 }], nextCursor: 'a.ts' }))
+    await result
+    expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true)
+    expect(fetcher).toHaveBeenCalledOnce()
   })
 
   it.each(['headers', 'body'] as const)('bounds stalled project read %s without converting it into empty data or retrying', async phase => {

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { downloadProjectArchive } from '@/lib/learning/project-archive'
 import { useSandboxStore } from '@/app/state'
 
-export function ProjectArchiveExport({ projectId, title, onClose }: { projectId: string; title: string; onClose: () => void }) {
+export function ProjectArchiveExport({ projectId, title, onClose, onReturnFocus }: { projectId: string; title: string; onClose: () => void; onReturnFocus?: () => void }) {
   const [progress, setProgress] = useState<{ saved: number; total: number; waitingSeconds?: number }>()
   const [busy, setBusy] = useState(false)
   const [cancelled, setCancelled] = useState(false)
@@ -48,7 +48,7 @@ export function ProjectArchiveExport({ projectId, title, onClose }: { projectId:
   function cancel() { task.current?.abort(); setCancelled(true) }
 
   return <Dialog open onOpenChange={value => { if (!value) { if (busy) cancel(); onClose() } }}>
-      <DialogContent aria-busy={busy}>
+      <DialogContent aria-busy={busy} onCloseAutoFocus={event => { if (onReturnFocus) { event.preventDefault(); onReturnFocus() } }}>
         <DialogHeader><DialogTitle>Export full project archive</DialogTitle><DialogDescription>Download saved source, chat, conflict copies, activity submissions and scores for “{title}”. This creates a frozen copy; it does not stop the sandbox or change your project.</DialogDescription></DialogHeader>
         <p className="text-sm text-muted-foreground">Unsaved editor drafts and uncaptured sandbox changes are not included. Save your files and wait for background source saving first. Keep the download private: your own source and messages may contain sensitive information.</p>
         <p className="text-xs text-muted-foreground">Restore this NDJSON file with Import archive. It includes your current saved work and any earlier imported history in one file. Historical records remain read-only and unverified; only the current source is restored.</p>

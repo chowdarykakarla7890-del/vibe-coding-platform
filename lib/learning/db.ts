@@ -187,8 +187,8 @@ export async function savePortfolio(portfolio: PortfolioDocument) {
   await cloudOperation().request('/api/portfolio', z.object({ saved: z.literal(true) }), 'PUT', portfolioDocumentSchema.parse(portfolio))
 }
 
-export async function exportProject(project: LearningProject): Promise<cache.ProjectExport> {
-  return { version: 1, exportedAt: Date.now(), project: { ...project, sandboxId: undefined, previewUrl: undefined }, files: await listFileSnapshots(project.id) }
+export async function exportProject(project: LearningProject, signal?: AbortSignal): Promise<cache.ProjectExport> {
+  return { version: 1, exportedAt: Date.now(), project: { ...project, sandboxId: undefined, previewUrl: undefined }, files: await listFileSnapshots(project.id, signal) }
 }
 
 export async function importProject(input: unknown, signal?: AbortSignal) {

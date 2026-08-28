@@ -8,6 +8,7 @@ import { checkBrowserEditor } from './check-browser-editor.mjs'
 import { browserDiagnostic } from './browser-diagnostics.mjs'
 import { isolatedAxeSource } from './browser-axe.mjs'
 import { checkBrowserSecurity } from './check-browser-security.mjs'
+import { checkBrowserRecovery } from './check-browser-recovery.mjs'
 
 assertBrowserCiEnvironment(process.env, readdirSync('.'))
 const { chromium, expect } = await import('@playwright/test')
@@ -158,6 +159,9 @@ try {
   })
   await step('pinned same-origin Monaco editing, diff, workers and stalled-download recovery', async () => {
     await checkBrowserEditor({ account: a, projectId: projectA, admin, base, expect, scan, phase: name => { stage = name } })
+  })
+  await step('expired saved-source export and source/archive recovery', async () => {
+    await checkBrowserRecovery({ account: a, projectId: projectA, admin, base, expect, scan, phase: name => { stage = name } })
   })
   await step('desktop keyboard navigation and collapsed sidebar', async () => {
     await a.page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()

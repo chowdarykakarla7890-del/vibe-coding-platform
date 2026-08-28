@@ -16,7 +16,7 @@ import {
   UploadIcon,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useSandboxStore } from '@/app/state'
 import { ProjectArchiveExport } from './project-archive-export'
@@ -59,10 +59,12 @@ export function ProjectSwitcher() {
   const [historyProject, setHistoryProject] = useState<string | null>(null)
   const busyRef = useRef(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const sourceDownload = useRef<AbortController | null>(null)
   const nameId = useId()
   const router = useRouter()
   const dirtyFilePath = useSandboxStore((state) => state.dirtyFilePath)
   const setDirtyFilePath = useSandboxStore((state) => state.setDirtyFilePath)
+  useEffect(() => () => { sourceDownload.current?.abort() }, [activeProject?.id])
   if (archiveProject && archiveProject.id !== activeProject?.id) setArchiveProject(null)
   if (historyProject && historyProject !== activeProject?.id) setHistoryProject(null)
 
@@ -103,19 +105,26 @@ export function ProjectSwitcher() {
 
   async function download() {
     if (!activeProject) return
-    const data = await exportProject(activeProject.id)
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    const fileName =
-      activeProject.title
-        .replace(/[^a-z0-9]+/gi, '-')
-        .replace(/^-+|-+$/g, '')
-        .toLowerCase() || 'project'
-    link.download = `${fileName}.codetutor.json`
-    link.click()
-    URL.revokeObjectURL(url)
+    if (useSandboxStore.getState().dirtyFilePath) throw new Error('Save your editor draft before exporting saved source.')
+    const controller = new AbortController()
+    sourceDownload.current = controller
+    try {
+      const data = await exportProject(activeProject.id, controller.signal)
+      if (controller.signal.aborted || !triggerRef.current?.isConnected) return
+      if (useSandboxStore.getState().dirtyFilePath) throw new Error('Save your editor draft, then export again. No draft was discarded.')
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const fileName = activeProject.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'project'
+      link.download = `${fileName}.codetutor.json`
+      try { link.click() }
+      finally { setTimeout(() => URL.revokeObjectURL(url), 60_000) }
+    } catch (error) {
+      if (!controller.signal.aborted) throw error
+    } finally {
+      if (sourceDownload.current === controller) sourceDownload.current = null
+    }
   }
 
   async function remove() {
@@ -126,6 +135,8 @@ export function ProjectSwitcher() {
     setOpen(false)
     toast.success('Project deleted')
   }
+
+  function returnFocus() { triggerRef.current?.focus() }
 
   return (
     <>
@@ -175,7 +186,7 @@ export function ProjectSwitcher() {
         <div className="mt-2 grid grid-cols-2 gap-1 border-t border-border pt-2">
           <Button className="justify-start" onClick={() => { setOpen(false); setProjectName('Untitled playground'); setAction('create') }} size="sm" variant="ghost"><PlusIcon className="size-3.5" />New</Button>
           <Button className="justify-start" disabled={!activeProject} onClick={() => { setOpen(false); setProjectName(activeProject?.title ?? ''); setAction('rename') }} size="sm" variant="ghost"><PencilIcon className="size-3.5" />Rename</Button>
-          <Button className="justify-start" disabled={!activeProject || busy} onClick={() => void perform(download)} size="sm" variant="ghost"><DownloadIcon className="size-3.5" />Source export</Button>
+          <Button className="justify-start" disabled={!activeProject || busy || Boolean(dirtyFilePath)} title={dirtyFilePath ? 'Save your editor draft before exporting saved source.' : 'Download saved source only; uncaptured sandbox changes are not included.'} onClick={() => void perform(download)} size="sm" variant="ghost"><DownloadIcon className="size-3.5" />Source export</Button>
           <Button className="justify-start" onClick={() => { setOpen(false); setImportOpen(true) }} size="sm" variant="ghost"><UploadIcon className="size-3.5" />Import source</Button>
           <Button className="justify-start" onClick={() => { setOpen(false); setArchiveImportOpen(true) }} size="sm" variant="ghost"><UploadIcon className="size-3.5" />Import archive</Button>
           <Button className="justify-start" disabled={!activeProject} onClick={() => { if (activeProject) { setOpen(false); setHistoryProject(activeProject.id) } }} size="sm" variant="ghost"><ArchiveIcon className="size-3.5" />Imported history</Button>
@@ -185,11 +196,11 @@ export function ProjectSwitcher() {
         </div>
       </PopoverContent>
     </Popover>
-    {archiveProject ? <ProjectArchiveExport key={archiveProject.id} projectId={archiveProject.id} title={archiveProject.title} onClose={() => setArchiveProject(null)} /> : null}
-    {importOpen ? <ProjectSourceImport onClose={() => setImportOpen(false)} onOpen={project => { openImportedProject(project); router.push(withTutorSettings('/playground')); toast.success('Imported source is ready') }} /> : null}
-    {archiveImportOpen ? <ProjectArchiveImport initialFile={deviceArchive} onClose={() => { setArchiveImportOpen(false); setDeviceArchive(undefined) }} onOpen={project => { openImportedProject(project); router.push(withTutorSettings('/playground')); toast.success('Archived source and history recovered') }} /> : null}
+    {archiveProject ? <ProjectArchiveExport key={archiveProject.id} projectId={archiveProject.id} title={archiveProject.title} onReturnFocus={returnFocus} onClose={() => setArchiveProject(null)} /> : null}
+    {importOpen ? <ProjectSourceImport onReturnFocus={returnFocus} onClose={() => setImportOpen(false)} onOpen={project => { openImportedProject(project); router.push(withTutorSettings('/playground')); requestProjectNavigationFocus(project.id); toast.success('Imported source is ready') }} /> : null}
+    {archiveImportOpen ? <ProjectArchiveImport onReturnFocus={returnFocus} initialFile={deviceArchive} onClose={() => { setArchiveImportOpen(false); setDeviceArchive(undefined) }} onOpen={project => { openImportedProject(project); router.push(withTutorSettings('/playground')); requestProjectNavigationFocus(project.id); toast.success('Archived source and history recovered') }} /> : null}
     {legacyRecoveryOpen ? <ProjectLegacyRecovery onClose={() => setLegacyRecoveryOpen(false)} onContinue={file => { setDeviceArchive(file); setLegacyRecoveryOpen(false); setArchiveImportOpen(true) }} /> : null}
-    {historyProject ? <ProjectImportedHistory key={historyProject} projectId={historyProject} onClose={() => setHistoryProject(null)} /> : null}
+    {historyProject ? <ProjectImportedHistory key={historyProject} projectId={historyProject} onReturnFocus={returnFocus} onClose={() => setHistoryProject(null)} /> : null}
     <Dialog onOpenChange={(next) => { if (!next && !busy) setAction(null) }} open={action !== null}>
       <DialogContent onCloseAutoFocus={event => { event.preventDefault(); triggerRef.current?.focus() }}>
         <DialogHeader>

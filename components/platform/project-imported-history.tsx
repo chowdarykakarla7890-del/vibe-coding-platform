@@ -17,7 +17,7 @@ const HistoryRecord = memo(function HistoryRecord({ envelope }: { envelope: Arch
   </details>
 })
 
-export function ProjectImportedHistory({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+export function ProjectImportedHistory({ projectId, onClose, onReturnFocus }: { projectId: string; onClose: () => void; onReturnFocus?: () => void }) {
   const [page, setPage] = useState<ImportedArchivePage>(), [busy, setBusy] = useState(true)
   const [error, setError] = useState<string>(), [progress, setProgress] = useState<string>()
   const [cursors, setCursors] = useState([0])
@@ -61,7 +61,7 @@ export function ProjectImportedHistory({ projectId, onClose }: { projectId: stri
     }
   }
   return <Dialog open onOpenChange={open => { if (!open) { task.current?.abort(); onClose() } }}>
-    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl" aria-busy={busy}>
+    <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl" aria-busy={busy} onCloseAutoFocus={event => { if (onReturnFocus) { event.preventDefault(); onReturnFocus() } }}>
       <DialogHeader><DialogTitle>Imported history</DialogTitle><DialogDescription>Original archive records are read-only and unverified. Imported tools never run, and archived scores do not count toward verified progress.</DialogDescription></DialogHeader>
       <p className="text-sm text-muted-foreground">Full project archive includes your current saved work and all imported evidence in one file. Download original archive below only if you want the unchanged file that was imported into this project.</p>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
