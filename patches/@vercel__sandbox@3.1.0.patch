@@ -1,0 +1,34 @@
+diff --git a/dist/api-client/with-retry.cjs b/dist/api-client/with-retry.cjs
+index 78cefce2658fff9523ea5789b31408d011a1c438..92960a416920eed12ac3fd44947a8f5d18983d0e 100644
+--- a/dist/api-client/with-retry.cjs
++++ b/dist/api-client/with-retry.cjs
+@@ -23,6 +23,12 @@ function withRetry(rawFetch) {
+ 			retries: 2,
+ 			factor: 2
+ 		}, opts.retry);
++		// Command creation is not idempotent. A lost response must never
++		// launch the user's process again, even when retries are configured.
++		if (opts.method === "POST" && /\/v2\/sandboxes\/sessions\/[^/]+\/cmd(?:\?|$)/.test(url)) {
++			retryOpts.retries = 0;
++			retryOpts.forever = false;
++		}
+ 		if (opts.onRetry) retryOpts.onRetry = (error, attempts) => {
+ 			opts.onRetry(error, opts);
+ 			if (opts.retry && opts.retry.onRetry) opts.retry.onRetry(error, attempts);
+diff --git a/dist/api-client/with-retry.js b/dist/api-client/with-retry.js
+index d482100c4e4dc1e5068bafe510e3931af0d28db1..f1b23506fcf32fee3cccbb8248186b5e86138926 100644
+--- a/dist/api-client/with-retry.js
++++ b/dist/api-client/with-retry.js
+@@ -21,6 +21,12 @@ function withRetry(rawFetch) {
+ 			retries: 2,
+ 			factor: 2
+ 		}, opts.retry);
++		// Command creation is not idempotent. A lost response must never
++		// launch the user's process again, even when retries are configured.
++		if (opts.method === "POST" && /\/v2\/sandboxes\/sessions\/[^/]+\/cmd(?:\?|$)/.test(url)) {
++			retryOpts.retries = 0;
++			retryOpts.forever = false;
++		}
+ 		if (opts.onRetry) retryOpts.onRetry = (error, attempts) => {
+ 			opts.onRetry(error, opts);
+ 			if (opts.retry && opts.retry.onRetry) opts.retry.onRetry(error, attempts);

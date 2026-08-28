@@ -1,92 +1,115 @@
 import type { Command, CommandLog } from '@/components/commands-logs/types'
 import type { DataPart } from '@/ai/messages/data-parts'
 import type { ChatStatus, DataUIPart } from 'ai'
-import { useMonitorState } from '@/components/error-monitor/state'
-import { useMemo } from 'react'
 import { create } from 'zustand'
+import { appendCommandLog } from '@/lib/commands/log-state'
 
 interface SandboxStore {
-  addGeneratedFiles: (files: string[]) => void
-  addLog: (data: { sandboxId: string; cmdId: string; log: CommandLog }) => void
+  sourceUpdate?: { path: string; revision: number; deleted: boolean; sequence: number }
+  notifySourceApplied: (sandboxId: string, file: { path: string; revision: number; deleted: boolean }) => void
+  activeFile?: string
+  addLog: (data: { sandboxId: string; cmdId: string; log: CommandLog; cursor?: string }) => void
   addPaths: (paths: string[]) => void
   chatStatus: ChatStatus
-  clearGeneratedFiles: () => void
+  clearSandbox: () => void
   commands: Command[]
-  generatedFiles: Set<string>
+  dirtyFilePath?: string
   paths: string[]
   sandboxId?: string
   setChatStatus: (status: ChatStatus) => void
+  setDirtyFilePath: (path?: string) => void
+  setActiveFile: (path?: string) => void
   setSandboxId: (id: string) => void
-  setStatus: (status: 'running' | 'stopped') => void
+  setSandboxStatus: (sandboxId: string, status: 'running' | 'stopping' | 'stopped') => void
   setUrl: (url: string, uuid: string) => void
-  status?: 'running' | 'stopped'
+  recordStudentEdit: () => void
+  status?: 'running' | 'stopping' | 'stopped'
+  studentEdits: number
   upsertCommand: (command: Omit<Command, 'startedAt'>) => void
   url?: string
   urlUUID?: string
 }
 
-function getBackgroundCommandErrorLines(commands: Command[]) {
-  return commands
-    .flatMap(({ command, args, background, logs = [] }) =>
-      logs.map((log) => ({ command, args, background, ...log }))
-    )
-    .sort((logA, logB) => logA.timestamp - logB.timestamp)
-    .filter((log) => log.stream === 'stderr' && log.background)
-}
-
-export function useCommandErrorsLogs() {
-  const { commands } = useSandboxStore()
-  const errors = useMemo(
-    () => getBackgroundCommandErrorLines(commands),
-    [commands]
-  )
-  return { errors }
-}
-
 export const useSandboxStore = create<SandboxStore>()((set) => ({
-  addGeneratedFiles: (files) =>
-    set((state) => ({
-      generatedFiles: new Set([...state.generatedFiles, ...files]),
-    })),
+  notifySourceApplied: (sandboxId, file) => set((state) => state.sandboxId !== sandboxId ? state : ({
+    sourceUpdate: { ...file, sequence: (state.sourceUpdate?.sequence ?? 0) + 1 },
+    paths: file.deleted ? state.paths.filter(path => path !== file.path) : [...new Set([...state.paths, file.path])],
+  })),
+  activeFile: undefined,
   addLog: (data) => {
     set((state) => {
+      if (state.sandboxId !== data.sandboxId || state.status === 'stopped') return state
       const idx = state.commands.findIndex((c) => c.cmdId === data.cmdId)
       if (idx === -1) {
         console.warn(`Command with ID ${data.cmdId} not found.`)
         return state
       }
       const updatedCmds = [...state.commands]
-      updatedCmds[idx] = {
-        ...updatedCmds[idx],
-        logs: [...(updatedCmds[idx].logs ?? []), data.log],
-      }
+      updatedCmds[idx] = appendCommandLog(updatedCmds[idx], data.log, data.cursor)
+      if (updatedCmds[idx] === state.commands[idx]) return state
       return { commands: updatedCmds }
     })
   },
   addPaths: (paths) =>
-    set((state) => ({ paths: [...new Set([...state.paths, ...paths])] })),
+    set((state) => {
+      const nextPaths = [...new Set([...state.paths, ...paths])]
+      return nextPaths.length === state.paths.length ? state : { paths: nextPaths }
+    }),
   chatStatus: 'ready',
-  clearGeneratedFiles: () => set(() => ({ generatedFiles: new Set<string>() })),
+  clearSandbox: () =>
+    set(() => ({
+      sandboxId: undefined,
+      sourceUpdate: undefined,
+      status: undefined,
+      commands: [],
+      dirtyFilePath: undefined,
+      activeFile: undefined,
+      paths: [],
+      url: undefined,
+      urlUUID: undefined,
+      studentEdits: 0,
+    })),
   commands: [],
-  generatedFiles: new Set<string>(),
   paths: [],
+  studentEdits: 0,
+  recordStudentEdit: () =>
+    set((state) => ({ studentEdits: state.studentEdits + 1 })),
   setChatStatus: (status) =>
     set((state) =>
       state.chatStatus === status ? state : { chatStatus: status }
     ),
+  setDirtyFilePath: (dirtyFilePath) => set({ dirtyFilePath }),
+  setActiveFile: (activeFile) => set({ activeFile }),
   setSandboxId: (sandboxId) =>
-    set(() => ({
+    set((state) => state.sandboxId === sandboxId ? state : ({
       sandboxId,
+      sourceUpdate: undefined,
       status: 'running',
       commands: [],
+      dirtyFilePath: undefined,
+      activeFile: undefined,
       paths: [],
       url: undefined,
-      generatedFiles: new Set<string>(),
+      urlUUID: undefined,
+      studentEdits: 0,
     })),
-  setStatus: (status) => set(() => ({ status })),
-  setUrl: (url, urlUUID) => set(() => ({ url, urlUUID })),
+  setSandboxStatus: (sandboxId, status) => set((state) =>
+    // A VM cannot resume after shutdown starts. Polls and shutdown receipts
+    // can arrive out of order; only attaching a new ID may reopen execution.
+    state.sandboxId !== sandboxId || state.status === status || state.status === 'stopped'
+      || (state.status === 'stopping' && status === 'running') ? state : status === 'stopped' ? {
+      status,
+      url: undefined,
+      urlUUID: undefined,
+      commands: state.commands.map((command) => command.status === 'running'
+        ? { ...command, status: 'error' as const, error: 'This sandbox is no longer running. Restore the workspace before running commands.' }
+        : command),
+    } : status === 'stopping' ? { status, url: undefined, urlUUID: undefined } : { status }
+  ),
+  setUrl: (url, urlUUID) => set((state) => state.status === 'stopped' || state.status === 'stopping' ? state : { url, urlUUID }),
   upsertCommand: (cmd) => {
     set((state) => {
+      if (state.sandboxId !== cmd.sandboxId || state.status === 'stopped') return state
       const existingIdx = state.commands.findIndex((c) => c.cmdId === cmd.cmdId)
       const idx = existingIdx !== -1 ? existingIdx : state.commands.length
       const prev = state.commands[idx] ?? { startedAt: Date.now(), logs: [] }
@@ -97,30 +120,14 @@ export const useSandboxStore = create<SandboxStore>()((set) => ({
   },
 }))
 
-interface FileExplorerStore {
-  paths: string[]
-  addPath: (path: string) => void
-}
+export function mapDataToState(data: DataUIPart<DataPart>) {
+  const {
+    addPaths,
+    setSandboxId,
+    setUrl,
+    upsertCommand,
+  } = useSandboxStore.getState()
 
-export const useFileExplorerStore = create<FileExplorerStore>()((set) => ({
-  paths: [],
-  addPath: (path) => {
-    set((state) => {
-      if (!state.paths.includes(path)) {
-        return { paths: [...state.paths, path] }
-      }
-      return state
-    })
-  },
-}))
-
-export function useDataStateMapper() {
-  const { addPaths, setSandboxId, setUrl, upsertCommand, addGeneratedFiles } =
-    useSandboxStore()
-  const { errors } = useCommandErrorsLogs()
-  const { setCursor } = useMonitorState()
-
-  return (data: DataUIPart<DataPart>) => {
     switch (data.type) {
       case 'data-create-sandbox':
         if (data.data.sandboxId) {
@@ -128,23 +135,27 @@ export function useDataStateMapper() {
         }
         break
       case 'data-generating-files':
-        if (data.data.status === 'uploaded') {
-          setCursor(errors.length)
+        if (data.data.sandboxId !== useSandboxStore.getState().sandboxId) break
+        if (data.data.status === 'uploaded' || data.data.status === 'done') {
           addPaths(data.data.paths)
-          addGeneratedFiles(data.data.paths)
         }
         break
       case 'data-run-command':
-        if (
-          data.data.commandId &&
-          (data.data.status === 'executing' || data.data.status === 'running')
-        ) {
+        if (data.data.commandId) {
           upsertCommand({
             background: data.data.status === 'running',
             sandboxId: data.data.sandboxId,
             cmdId: data.data.commandId,
             command: data.data.command,
             args: data.data.args,
+            error: data.data.error?.message,
+            exitCode: data.data.exitCode,
+            status:
+              data.data.status === 'done'
+                ? 'done'
+                : data.data.status === 'error'
+                  ? 'error'
+                  : 'running',
           })
         }
         break
@@ -156,5 +167,4 @@ export function useDataStateMapper() {
       default:
         break
     }
-  }
 }

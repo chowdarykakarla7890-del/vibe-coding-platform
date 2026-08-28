@@ -1,0 +1,41 @@
+import { practiceLesson } from './shared'
+
+const command = { executable: 'python3', args: ['-m', 'unittest', '-v', 'test_lesson.py'] }
+function files(source: string, tests: string) {
+  return [{ path: 'main.py', content: source }, { path: 'test_lesson.py', content: `import unittest\nfrom main import *\n\nclass LessonTests(unittest.TestCase):\n${tests}\n\nif __name__ == '__main__':\n    unittest.main()\n` }]
+}
+export const pythonPractice = [
+  practiceLesson({ track: 'python', stage: 'fundamentals', title: 'Normalize a URL slug',
+    summary: 'Convert a title to an ASCII slug while handling repeated separators and empty results.',
+    concepts: ['strings', 'iteration', 'normalization'],
+    explanation: 'Normalization maps many equivalent inputs to one predictable form. A slug keeps ASCII letters and digits, lowercases letters and joins runs with one hyphen. Treating punctuation as a separator rather than deleting it prevents words from being accidentally merged.',
+    instructions: ['Implement slugify(title) for string input. Lowercase ASCII A–Z; keep ASCII a–z and 0–9; replace each run of all other characters with one hyphen. Remove leading and trailing hyphens. Return "untitled" if nothing remains.', 'Do not transliterate non-ASCII letters. For example, "café" becomes "caf" and "東京" becomes "untitled". Input validation beyond strings is not required.'],
+    hints: ['A separator run should contribute at most one hyphen.', 'Python isalnum accepts more than ASCII; use an explicit ASCII rule.', 'Separate cleanup of edge separators from the empty-result fallback.'],
+    reflectionQuestions: ['Why is isalnum alone too permissive for this contract?', 'Is slugify(slugify(title)) equal to slugify(title)? Give a reason and an example.'],
+    examples: [{ input: 'slugify("  Hello, WORLD!!  ")', output: '"hello-world"' }, { input: 'slugify("___")', output: '"untitled"' }],
+    files: files(`def slugify(title):\n    # TODO: normalize the title to an ASCII slug.\n    raise NotImplementedError('Complete the TODO before submitting')\n`, `    def test_words_and_separators(self):\n        self.assertEqual(slugify('  Hello, WORLD!!  '), 'hello-world')\n        self.assertEqual(slugify('A__B / 42'), 'a-b-42')\n\n    def test_empty_and_unicode(self):\n        for value in ['', '___', '東京', 'Kİ']:\n            self.assertEqual(slugify(value), 'untitled')\n        self.assertEqual(slugify('café'), 'caf')\n\n    def test_idempotent(self):\n        for value in ['A--B', '42', 'already-valid']:\n            self.assertEqual(slugify(slugify(value)), slugify(value))`), command,
+    quality: 'Implements the ASCII-only contract and handles separator runs clearly',
+  }),
+  practiceLesson({ track: 'python', stage: 'data-flow', title: 'Summarize reimbursable expenses',
+    summary: 'Group eligible expenses by normalized category with a fresh result and no source mutation.',
+    concepts: ['dictionaries', 'grouping', 'data transformation'],
+    explanation: 'Grouping is a one-pass operation: normalize the key, choose whether to include the row, and update that key’s running total. Keeping normalization explicit avoids two visually equivalent categories splitting the report.',
+    instructions: ['Implement expense_totals(rows). Each row has category (string), cents (nonnegative integer), reimbursable (boolean). Include reimbursable rows only.', 'Normalize category by stripping surrounding whitespace and lowercasing; use "other" for an empty category. Return a dict of category to total cents. Include eligible zero-cent categories, and return {} for no eligible rows. Do not change input rows.'],
+    hints: ['Skip ineligible rows before creating category keys.', 'dict.get(key, 0) can supply a missing starting total.', 'Use integer cents throughout.'],
+    reflectionQuestions: ['Should an ineligible row create a zero-total category? Why?', 'What source mutation could cause a later report to disagree with this one?'],
+    examples: [{ input: '[{"category":" Travel ","cents":250,"reimbursable":true}]', output: '{"travel":250}' }],
+    files: files(`def expense_totals(rows):\n    # TODO: group eligible expenses by normalized category.\n    raise NotImplementedError('Complete the TODO before submitting')\n`, `    def test_empty_or_ineligible(self):\n        self.assertEqual(expense_totals([]), {})\n        self.assertEqual(expense_totals([dict(category='Food', cents=90, reimbursable=False)]), {})\n\n    def test_groups_and_empty_category(self):\n        rows = [dict(category=' Travel ', cents=250, reimbursable=True), dict(category='travel', cents=50, reimbursable=True), dict(category=' ', cents=0, reimbursable=True)]\n        self.assertEqual(expense_totals(rows), {'travel': 300, 'other': 0})\n\n    def test_does_not_mutate(self):\n        import copy\n        rows = [dict(category=' FOOD ', cents=12, reimbursable=True)]\n        original = copy.deepcopy(rows)\n        self.assertEqual(expense_totals(rows), {'food': 12})\n        self.assertEqual(rows, original)`), command,
+    quality: 'Separates eligibility, normalization and aggregation without mutating input',
+  }),
+  practiceLesson({ track: 'python', stage: 'composition', title: 'Import a validated CSV roster',
+    summary: 'Parse quoted CSV fields, validate rows, and report line-specific errors without losing valid records.',
+    concepts: ['CSV parsing', 'validation', 'error reporting'],
+    explanation: 'A resilient importer separates syntax parsing from business validation. The csv module handles commas inside quoted fields. Keeping valid records and errors in separate lists lets a user repair rejected rows without re-entering everything else.',
+    instructions: ['Implement import_roster(text). Input is syntactically valid CSV with an exact name,age header and no multiline fields. Use csv.DictReader. Return {"records":[{"name":str,"age":int}],"errors":[{"line":int,"error":str}]}. Lines start at 2 after the header; blank physical lines are ignored.', 'Trim names; reject an empty name with error "name". Otherwise trim age and require ASCII digits representing 13–120 inclusive, else error "age". Only the first error per row is reported. Keep input order for both lists; quoted names may contain commas. Duplicate names are allowed.', 'A header-only input returns two empty lists. Fields and headers otherwise have the stated shape; malformed CSV/header handling is outside this lesson.'],
+    hints: ['Use io.StringIO to give DictReader a text stream.', 'reader.line_num gives physical line numbers, including skipped blank lines.', 'Validate name first, then age; append a record only after both succeed.'],
+    reflectionQuestions: ['Why would splitting each line on a comma break valid input?', 'Why return a list of errors rather than raising on the first invalid row?'],
+    examples: [{ input: 'name,age\n"Doe, Ada",20\nBen,12', output: '{records:[{name:"Doe, Ada",age:20}],errors:[{line:3,error:"age"}]}' }],
+    files: files(`import csv\nimport io\n\ndef import_roster(text):\n    # TODO: parse CSV and collect valid records plus first-error-per-row feedback.\n    raise NotImplementedError('Complete the TODO before submitting')\n`, `    def test_header_only(self):\n        self.assertEqual(import_roster('name,age\\n'), {'records': [], 'errors': []})\n\n    def test_quoted_names_and_age_boundaries(self):\n        self.assertEqual(import_roster('name,age\\n"Doe, Ada",13\\n Grace ,120\\n'), {'records': [{'name': 'Doe, Ada', 'age': 13}, {'name': 'Grace', 'age': 120}], 'errors': []})\n\n    def test_errors_preserve_physical_lines_and_order(self):\n        result = import_roster('name,age\\n ,bad\\n\\nBen,12\\nLee,121\\nSam,13.5\\nAna,20\\n')\n        self.assertEqual(result, {'records': [{'name': 'Ana', 'age': 20}], 'errors': [{'line': 2, 'error': 'name'}, {'line': 4, 'error': 'age'}, {'line': 5, 'error': 'age'}, {'line': 6, 'error': 'age'}]})\n\n    def test_ascii_digits_only(self):\n        result = import_roster('name,age\\nAda,２０\\nBen,+20\\nCy, 020 \\n')\n        self.assertEqual(result['records'], [{'name': 'Cy', 'age': 20}])\n        self.assertEqual(result['errors'], [{'line': 2, 'error': 'age'}, {'line': 3, 'error': 'age'}])`), command,
+    quality: 'Uses CSV-aware parsing with deterministic validation and actionable line numbers',
+  }),
+]

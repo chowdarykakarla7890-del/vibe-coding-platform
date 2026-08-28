@@ -1,4 +1,6 @@
-import { APIError } from '@vercel/sandbox/dist/api-client/api-error'
+import { ApiError } from '@/lib/server/api'
+import { getSandboxErrorCode, isSandboxUnavailableError } from '@/ai/sandbox'
+import { getAIServiceFailure } from '@/ai/service-error'
 
 interface Params {
   args?: Record<string, unknown>
@@ -7,37 +9,15 @@ interface Params {
 }
 
 /**
- * Allows to parse a thrown error to check its metadata and construct a rich
- * message that can be handed to the LLM.
+ * Tool errors are sent to the browser and model. Never forward raw upstream
+ * bodies, stacks, request arguments, source files, or credential-bearing URLs.
  */
-export function getRichError({ action, args, error }: Params) {
-  const fields = getErrorFields(error)
-  let message = `Error during ${action}: ${fields.message}`
-  if (args) message += `\nParameters: ${JSON.stringify(args, null, 2)}`
-  if (fields.json) message += `\nJSON: ${JSON.stringify(fields.json, null, 2)}`
-  if (fields.text) message += `\nText: ${fields.text}`
-  return {
-    message: message,
-    error: fields,
-  }
-}
-
-function getErrorFields(error: unknown) {
-  if (!(error instanceof Error)) {
-    return {
-      message: String(error),
-      json: error,
-    }
-  } else if (error instanceof APIError) {
-    return {
-      message: error.message,
-      json: error.json,
-      text: error.text,
-    }
-  } else {
-    return {
-      message: error.message,
-      json: error,
-    }
-  }
+export function getRichError({ action, error }: Params) {
+  const message = error instanceof ApiError ? error.message
+    : getAIServiceFailure(error)?.message ?? (isSandboxUnavailableError(error) ? 'This sandbox expired. Restore the project before continuing.'
+      : error instanceof Error && error.name === 'AbortError' ? 'The operation was stopped.'
+        : error instanceof Error && error.name === 'TimeoutError' ? 'The operation timed out. Please retry.'
+          : getSandboxErrorCode(error) === 'rate_limit_exceeded' ? 'The sandbox is temporarily rate limited. Try again shortly.'
+            : 'The service could not complete this operation. Please retry.')
+  return { message: `Error during ${action}: ${message}`, error: { message } }
 }

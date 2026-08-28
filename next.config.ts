@@ -1,21 +1,22 @@
 import type { NextConfig } from 'next'
 import { withBotId } from 'botid/next/config'
+import { assertDeploymentEnvironment } from './lib/deployment/environment'
+import { securityHeaders } from './lib/security-headers'
+
+assertDeploymentEnvironment(process.env, process.versions.node)
 
 const nextConfig: NextConfig = {
-  webpack(config) {
-    config.module.rules.push({
-      test: /\.md/,
-      type: 'asset/source',
-    })
-    return config
+  headers() {
+    return [{ source: '/:path*', headers: securityHeaders }]
   },
-  turbopack: {
-    rules: {
-      '*.md': {
-        loaders: ['raw-loader'],
-        as: '*.js',
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/playground',
+        permanent: false,
       },
-    },
+    ]
   },
   images: {
     remotePatterns: [

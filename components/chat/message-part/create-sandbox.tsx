@@ -5,10 +5,13 @@ import { ToolHeader } from '../tool-header'
 import { ToolMessage } from '../tool-message'
 
 interface Props {
+  isStreaming: boolean
   message: DataPart['create-sandbox']
 }
 
-export function CreateSandbox({ message }: Props) {
+export function CreateSandbox({ isStreaming, message }: Props) {
+  const interrupted = !isStreaming && message.status === 'loading'
+  const failed = message.status === 'error' || interrupted
   return (
     <ToolMessage>
       <ToolHeader>
@@ -18,9 +21,9 @@ export function CreateSandbox({ message }: Props) {
       <div className="relative pl-6 min-h-5">
         <Spinner
           className="absolute left-0 top-0"
-          loading={message.status === 'loading'}
+          loading={isStreaming && message.status === 'loading'}
         >
-          {message.status === 'error' ? (
+          {failed ? (
             <XIcon className="w-4 h-4 text-red-700" />
           ) : (
             <CheckIcon className="w-4 h-4" />
@@ -28,9 +31,15 @@ export function CreateSandbox({ message }: Props) {
         </Spinner>
         <span>
           {message.status === 'done' && 'Sandbox created successfully'}
-          {message.status === 'loading' && 'Creating Sandbox'}
+          {!interrupted && message.status === 'loading' && 'Creating Sandbox'}
           {message.status === 'error' && 'Failed to create sandbox'}
+          {interrupted && 'Sandbox creation was interrupted'}
         </span>
+        {(message.error?.message || interrupted) && (
+          <p className="mt-1.5 text-xs leading-4 text-red-400">
+            {message.error?.message ?? 'Create a new sandbox and try again.'}
+          </p>
+        )}
       </div>
     </ToolMessage>
   )

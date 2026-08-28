@@ -1,149 +1,92 @@
 'use client'
 
-import { BarLoader } from 'react-spinners'
-import { CompassIcon, RefreshCwIcon } from 'lucide-react'
+import { CompassIcon, LoaderCircleIcon, RefreshCwIcon } from 'lucide-react'
 import { Panel, PanelHeader } from '@/components/panels/panels'
-import { ScrollArea } from '@radix-ui/react-scroll-area'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { previewOriginSchema } from '@/lib/sandbox/preview'
 import { cn } from '@/lib/utils'
 
 interface Props {
   className?: string
   disabled?: boolean
   url?: string
+  loading?: boolean
+  error?: string
+  ports?: number[]
+  port?: number
+  onPortChange?: (port: number) => void
+  onReconnect?: () => void
 }
 
-export function Preview({ className, disabled, url }: Props) {
-  const [currentUrl, setCurrentUrl] = useState(url)
-  const [error, setError] = useState<string | null>(null)
-  const [inputValue, setInputValue] = useState(url || '')
-  const [isLoading, setIsLoading] = useState(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const loadStartTime = useRef<number | null>(null)
+export function Preview(props: Props) {
+  return <PreviewFrame key={`${props.url ?? 'empty'}:${Boolean(props.disabled)}`} {...props} />
+}
+
+function PreviewFrame({ className, disabled, url, loading, error: connectionError, ports, port, onPortChange, onReconnect }: Props) {
+  const result = previewOriginSchema.safeParse(url)
+  const currentUrl = result.success ? result.data : undefined
+  const [frameError, setFrameError] = useState<string>()
+  const [isLoading, setIsLoading] = useState(Boolean(currentUrl))
+  const [refreshKey, setRefreshKey] = useState(0)
+  const error = connectionError ?? frameError ?? (url && !currentUrl ? 'This preview address is not a valid sandbox origin. Reconnect to verify it.' : undefined)
+  const busy = Boolean(loading || isLoading) && !disabled && !error
 
   useEffect(() => {
-    setCurrentUrl(url)
-    setInputValue(url || '')
-  }, [url])
+    if (!currentUrl || disabled || loading || !isLoading) return
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+      setFrameError('The preview did not finish loading. Check that your web server is running on the selected port, then retry.')
+    }, 20_000)
+    return () => clearTimeout(timer)
+  }, [currentUrl, disabled, loading, isLoading, refreshKey])
 
-  const refreshIframe = () => {
-    if (iframeRef.current && currentUrl) {
+  function refresh() {
+    if (disabled) return
+    setFrameError(undefined)
+    if (onReconnect) onReconnect()
+    else if (currentUrl) {
       setIsLoading(true)
-      setError(null)
-      loadStartTime.current = Date.now()
-      iframeRef.current.src = ''
-      setTimeout(() => {
-        if (iframeRef.current) {
-          iframeRef.current.src = currentUrl
-        }
-      }, 10)
+      setRefreshKey(key => key + 1)
     }
   }
 
-  const loadNewUrl = () => {
-    if (iframeRef.current && inputValue) {
-      if (inputValue !== currentUrl) {
-        setIsLoading(true)
-        setError(null)
-        loadStartTime.current = Date.now()
-        iframeRef.current.src = inputValue
-      } else {
-        refreshIframe()
-      }
-    }
-  }
-
-  const handleIframeLoad = () => {
-    setIsLoading(false)
-    setError(null)
-  }
-
-  const handleIframeError = () => {
-    setIsLoading(false)
-    setError('Failed to load the page')
-  }
-
-  return (
-    <Panel className={className}>
-      <PanelHeader>
-        <div className="absolute flex items-center space-x-1">
-          <a href={currentUrl} target="_blank" className="cursor-pointer px-1">
-            <CompassIcon className="w-4" />
-          </a>
-          <button
-            onClick={refreshIframe}
-            type="button"
-            className={cn('cursor-pointer px-1', {
-              'animate-spin': isLoading,
-            })}
-          >
-            <RefreshCwIcon className="w-4" />
-          </button>
-        </div>
-
-        <div className="m-auto h-6">
-          {url && (
-            <input
-              type="text"
-              className="font-mono text-xs h-6 border border-gray-200 px-4 bg-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[300px]"
-              onChange={(event) => setInputValue(event.target.value)}
-              onClick={(event) => event.currentTarget.select()}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.currentTarget.blur()
-                  loadNewUrl()
-                }
-              }}
-              value={inputValue}
-            />
-          )}
-        </div>
-      </PanelHeader>
-
-      <div className="flex h-[calc(100%-2rem-1px)] relative">
-        {currentUrl && !disabled && (
-          <>
-            <ScrollArea className="w-full">
-              <iframe
-                ref={iframeRef}
-                src={currentUrl}
-                className="w-full h-full"
-                onLoad={handleIframeLoad}
-                onError={handleIframeError}
-                title="Browser content"
-              />
-            </ScrollArea>
-
-            {isLoading && !error && (
-              <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center flex-col gap-2">
-                <BarLoader color="#666" />
-                <span className="text-gray-500 text-xs">Loading...</span>
-              </div>
-            )}
-
-            {error && (
-              <div className="absolute inset-0 bg-white flex items-center justify-center flex-col gap-2">
-                <span className="text-red-500">Failed to load page</span>
-                <button
-                  className="text-blue-500 hover:underline text-sm"
-                  type="button"
-                  onClick={() => {
-                    if (currentUrl) {
-                      setIsLoading(true)
-                      setError(null)
-                      const newUrl = new URL(currentUrl)
-                      newUrl.searchParams.set('t', Date.now().toString())
-                      setCurrentUrl(newUrl.toString())
-                    }
-                  }}
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </Panel>
-  )
+  return <Panel className={className}>
+    <PanelHeader className="min-w-0 gap-2">
+      {currentUrl && !disabled && !loading && !connectionError ? <a
+        aria-label="Open preview in a new tab"
+        className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        href={currentUrl} rel="noopener noreferrer" target="_blank"
+      ><CompassIcon className="size-4" /></a> : <CompassIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
+      <button aria-label="Reconnect preview" type="button" onClick={refresh} disabled={disabled || loading || (!currentUrl && !onReconnect)}
+        className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-40">
+        <RefreshCwIcon className={cn('size-4', busy && 'motion-safe:animate-spin')} />
+      </button>
+      <input aria-label="Preview URL" readOnly type="text" value={disabled ? '' : currentUrl ?? ''}
+        placeholder="Owned sandbox preview" onClick={event => event.currentTarget.select()}
+        className="h-7 min-w-0 flex-1 rounded border border-border bg-secondary px-2 font-mono text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+      {ports && port !== undefined ? <select aria-label="Preview port" value={port} disabled={disabled || loading} onChange={event => onPortChange?.(Number(event.target.value))}
+        className="h-7 max-w-24 shrink-0 rounded border border-border bg-secondary px-1 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+        {ports.map(value => <option key={value} value={value}>{value}</option>)}
+      </select> : null}
+    </PanelHeader>
+    <div className="relative min-h-0 flex-1 bg-background">
+      {currentUrl && !disabled && !loading && !connectionError ? <iframe
+        className="h-full w-full border-0" key={refreshKey}
+        onError={() => { setIsLoading(false); setFrameError('Failed to load the preview. Check the server and reconnect.') }}
+        onLoad={() => { setIsLoading(false); setFrameError(undefined) }}
+        referrerPolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
+        src={currentUrl} title="Sandbox preview"
+      /> : <div className="grid h-full place-items-center p-6 text-center font-mono text-xs text-muted-foreground">
+        {disabled ? 'This sandbox has stopped. Restore it to reopen the preview.' : 'Create a sandbox, then run a web server on an exposed port to open its preview here.'}
+      </div>}
+      {busy ? <div role="status" aria-live="polite" className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/90">
+        <LoaderCircleIcon aria-hidden="true" className="size-5 motion-safe:animate-spin" />
+        <span className="text-xs text-muted-foreground">{loading ? 'Connecting to your sandbox…' : 'Loading preview…'}</span>
+      </div> : null}
+      {error && !disabled ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/95 p-6 text-center">
+        <p role="alert" className="text-sm">{error}</p>
+        <button className="rounded border border-border px-3 py-1.5 text-xs hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" onClick={refresh} type="button">Retry preview</button>
+      </div> : null}
+    </div>
+  </Panel>
 }

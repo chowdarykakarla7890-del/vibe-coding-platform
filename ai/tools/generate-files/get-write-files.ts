@@ -1,16 +1,16 @@
 import type { DataPart } from '../../messages/data-parts'
 import type { File } from './get-contents'
-import type { Sandbox } from '@vercel/sandbox'
 import type { UIMessageStreamWriter, UIMessage } from 'ai'
 import { getRichError } from '../get-rich-error'
 
 interface Params {
-  sandbox: Sandbox
+  saveFiles: (files: File[]) => Promise<void>
+  sandboxId: string
   toolCallId: string
   writer: UIMessageStreamWriter<UIMessage<never, DataPart>>
 }
 
-export function getWriteFiles({ sandbox, toolCallId, writer }: Params) {
+export function getWriteFiles({ saveFiles, sandboxId, toolCallId, writer }: Params) {
   return async function writeFiles(params: {
     written: string[]
     files: File[]
@@ -20,16 +20,11 @@ export function getWriteFiles({ sandbox, toolCallId, writer }: Params) {
     writer.write({
       id: toolCallId,
       type: 'data-generating-files',
-      data: { paths, status: 'uploading' },
+      data: { sandboxId, paths, status: 'uploading' },
     })
 
     try {
-      await sandbox.writeFiles(
-        params.files.map((file) => ({
-          content: Buffer.from(file.content, 'utf8'),
-          path: file.path,
-        }))
-      )
+      await saveFiles(params.files)
     } catch (error) {
       const richError = getRichError({
         action: 'write files to sandbox',
@@ -42,6 +37,7 @@ export function getWriteFiles({ sandbox, toolCallId, writer }: Params) {
         type: 'data-generating-files',
         data: {
           error: richError.error,
+          sandboxId,
           status: 'error',
           paths: params.paths,
         },
@@ -53,7 +49,7 @@ export function getWriteFiles({ sandbox, toolCallId, writer }: Params) {
     writer.write({
       id: toolCallId,
       type: 'data-generating-files',
-      data: { paths, status: 'uploaded' },
+      data: { sandboxId, paths, status: 'uploaded' },
     })
   }
 }
