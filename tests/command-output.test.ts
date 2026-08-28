@@ -49,9 +49,11 @@ it('close cancels a pending upstream next without waiting for the idle process',
   expect(close).toHaveBeenCalled()
 })
 it('executes the real byte encoder incrementally, preserving argv, streams and nonzero exit', async () => {
-  const text = '🙂你好\n'.repeat(15000), argument = '$(not executed); spaces'
-  const script = 'import os,sys,time;os.write(1,sys.argv[1].encode());time.sleep(0.05);os.write(2,sys.argv[2].encode());sys.exit(3)'
-  const child = spawn('python3', ['-I', '-S', '-c', COMMAND_OUTPUT_PROGRAM, 'python3', '-I', '-S', '-c', script, text, argument], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const chunk = '🙂你好\n', repeats = 15000, text = chunk.repeat(repeats), argument = '$(not executed); spaces'
+  // Generate the large payload in the child: passing it as one argv entry
+  // exceeds Linux's per-argument limit before the encoder can even start.
+  const script = 'import os,sys,time;os.write(1,sys.argv[1].encode()*int(sys.argv[2]));time.sleep(0.05);os.write(2,sys.argv[3].encode());sys.exit(3)'
+  const child = spawn('python3', ['-I', '-S', '-c', COMMAND_OUTPUT_PROGRAM, 'python3', '-I', '-S', '-c', script, chunk, String(repeats), argument], { stdio: ['ignore', 'pipe', 'pipe'] })
   const parts: { stream: 'stdout' | 'stderr'; data: string }[] = []
   child.stdout.on('data', data => { expect(/^[\x00-\x7f]*$/.test(data.toString())).toBe(true); parts.push({ stream: 'stdout', data: data.toString() }) })
   child.stderr.on('data', data => parts.push({ stream: 'stderr', data: data.toString() }))
