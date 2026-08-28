@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { createHash } from 'node:crypto'
 
 /** @param {Record<string, string | undefined>} env */
 export function isolatedBuildEnvironment(env = process.env) {
@@ -40,6 +44,18 @@ export async function withProductionServer(env, callback) {
 
 export async function checkAnonymousRoutes(base, fetcher = fetch) {
   const get = path => fetcher(new URL(path, base), { redirect: 'manual', signal: AbortSignal.timeout(5000) })
+  const require = createRequire(import.meta.url)
+  const pin = require('../package.json').dependencies['monaco-editor']
+  const packageRoot = dirname(require.resolve('monaco-editor/package.json'))
+  assert.equal(require('monaco-editor/package.json').version, pin)
+  // Verify the deployed bytes, not just package.json. No auth or CDN required.
+  for (const asset of ['loader.js', 'editor/editor.main.js', 'editor/editor.worker.js']) {
+    const response = await get(`/vendor/monaco/${pin}/vs/${asset}`)
+    assert.equal(response.status, 200, 'Pinned Monaco assets must load without an auth redirect.')
+    assert.match(response.headers.get('content-type') ?? '', /javascript/)
+    const hash = value => createHash('sha256').update(value).digest('hex')
+    assert.equal(hash(Buffer.from(await response.arrayBuffer())), hash(readFileSync(join(packageRoot, 'min', 'vs', asset))))
+  }
   const login = await get('/sign-in')
   assert.equal(login.status, 200)
   assert((await login.text()).includes('CodeTutor'))

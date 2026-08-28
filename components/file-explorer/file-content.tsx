@@ -13,7 +13,7 @@ import { sourceReceiptSchema, sourceRevisionSchema } from '@/lib/source-version'
 import { readWithDeadline } from '@/lib/abortable-read'
 import { awaitMutationReceipt, MutationReceiptTimeoutError } from '@/lib/mutation-receipt'
 
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
+const MonacoEditor = dynamic(() => import('./monaco-runtime'), {
   ssr: false,
   loading: () => (
     <div className="flex h-full items-center justify-center">
@@ -23,7 +23,7 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
 })
 
 const MonacoDiffEditor = dynamic(
-  () => import('@monaco-editor/react').then((module) => module.DiffEditor),
+  () => import('./monaco-runtime').then((module) => module.MonacoDiffEditor),
   { ssr: false }
 )
 
@@ -332,7 +332,8 @@ function FileEditor({
               onDirtyChange?.(nextDirty)
             }}
             onMount={handleMount}
-            options={{ ...editorOptions, readOnly: readOnly || deleted }}
+            onSave={() => saveRef.current()}
+            options={{ ...editorOptions, ariaLabel: 'Source editor', readOnly: readOnly || deleted }}
             theme="vs-dark"
             value={draft}
           />

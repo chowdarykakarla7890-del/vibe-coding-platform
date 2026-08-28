@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs'
 import { setTimeout as pause } from 'node:timers/promises'
 import { assertBrowserCiEnvironment, localEmailVerificationLink } from './browser-fixtures.mjs'
 import { isolatedBuildEnvironment } from './ci-smoke.mjs'
+import { checkBrowserEditor } from './check-browser-editor.mjs'
 
 assertBrowserCiEnvironment(process.env, readdirSync('.'))
 const { chromium, expect } = await import('@playwright/test')
@@ -148,6 +149,9 @@ try {
     await expect(switcher(a.page)).toHaveText('Renamed browser A')
     await expect(switcher(a.page)).toBeFocused()
     assert.equal(new URL(a.page.url()).searchParams.get('modelId'), 'openai/gpt-5-nano')
+  })
+  await step('pinned same-origin Monaco editing, diff, workers and stalled-download recovery', async () => {
+    await checkBrowserEditor({ account: a, projectId: projectA, admin, base, expect, scan })
   })
   await step('desktop keyboard navigation and collapsed sidebar', async () => {
     await a.page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()
