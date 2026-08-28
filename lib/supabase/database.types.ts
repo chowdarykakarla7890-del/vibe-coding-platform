@@ -1259,6 +1259,10 @@ export type Database = {
         Args: { p_sandbox_id: string; p_user_id: string }
         Returns: string
       }
+      begin_worker_invocation: {
+        Args: { p_run_id: string; p_worker_name: string }
+        Returns: boolean
+      }
       claim_sandbox_cleanup: { Args: { p_job_id?: string }; Returns: Json }
       claim_source_capture: { Args: { p_job_id?: string }; Returns: Json }
       consume_rate_limit: {
@@ -1331,6 +1335,10 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_worker_invocation: {
+        Args: { p_run_id: string; p_succeeded: boolean; p_worker_name: string }
+        Returns: boolean
+      }
       prepare_submission_grading: {
         Args: { p_plan: Json; p_submission_id: string; p_user_id: string }
         Returns: Json
@@ -1367,6 +1375,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      read_worker_invocation_health: {
+        Args: never
+        Returns: {
+          checked_at: string
+          finished_at: string
+          last_failure_at: string
+          last_success_at: string
+          outcome: string
+          started_at: string
+          worker_name: string
+        }[]
       }
       reconcile_source_capture: {
         Args: {

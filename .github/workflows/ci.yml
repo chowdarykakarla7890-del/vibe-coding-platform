@@ -79,6 +79,8 @@ jobs:
         run: npx --yes supabase@2.116.0 db reset --local --no-seed --yes
       - name: Lint application SQL
         run: npx --yes supabase@2.116.0 db lint --local --schema public,private --level error --fail-on error
+      - name: Check database security advisors
+        run: npx --yes supabase@2.116.0 db advisors --local --type security --level warn --fail-on warn
       - name: Database invariants and generated type comparison
         run: node scripts/ci-database.mjs
       - name: Destroy only this disposable CI database

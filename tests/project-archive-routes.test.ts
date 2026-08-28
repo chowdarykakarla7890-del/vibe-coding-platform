@@ -78,7 +78,7 @@ it('protects periodic cleanup and validates its bounded result', async () => {
   vi.stubEnv('CRON_SECRET', 'a'.repeat(40))
   expect((await cleanupArchives(new Request('http://localhost/api/internal/archive-cleanup'))).status).toBe(401)
   expect(purge).not.toHaveBeenCalled()
-  purge.mockReturnValue({ abortSignal: vi.fn().mockResolvedValue({ data: 1, error: null }) })
+  purge.mockImplementation((name: string) => ({ abortSignal: vi.fn().mockResolvedValue({ data: name.startsWith('purge_') ? 1 : true, error: null }) }))
   const response = await cleanupArchives(new Request('http://localhost/api/internal/archive-cleanup', { headers: { authorization: `Bearer ${'a'.repeat(40)}` } }))
   expect(response.status).toBe(200); expect(await response.json()).toEqual({ removed: 1, importsRemoved: 1, archiveImportsRemoved: 1 })
   expect(purge).toHaveBeenCalledWith('purge_project_archives')

@@ -32,11 +32,18 @@ it('keeps the workflow non-deploying, read-only and pinned to immutable actions'
   expect(workflow).toContain('contents: read')
   expect(workflow).not.toMatch(/pull_request_target|secrets\.|id-token: write|vercel (deploy|promote)|--linked|--project-ref/)
   expect(workflow).toContain('db reset --local --no-seed --yes')
+  expect(workflow).toContain('db advisors --local --type security --level warn --fail-on warn')
   expect(workflow).toContain('needs: [application, database]')
   expect(workflow).toContain('if: always()')
 })
 it('refuses to run the destructive replay harness outside disposable CI', () => {
   const result = spawnSync(process.execPath, ['scripts/ci-database.mjs'], { encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'false' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('restricted to disposable GitHub CI')
+})
+it('refuses worker health fixtures outside disposable CI', () => {
+  const result = spawnSync(process.execPath, ['scripts/verify-worker-health.mjs'], { encoding: 'utf8', timeout: 5000,
     env: { ...process.env, CI: 'true', GITHUB_ACTIONS: 'false' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('restricted to disposable GitHub CI')

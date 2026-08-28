@@ -41,6 +41,7 @@ function run(script, args = [], extra = {}) {
 run('node_modules/next/dist/bin/next', ['build'])
 await withProductionServer(env, async base => {
   await checkAnonymousRoutes(base)
+  run('scripts/verify-worker-health.mjs', [], { TEST_APP_URL: base })
   run('scripts/verify-auth-projects.mjs', [], { TEST_APP_URL: base })
   run('scripts/verify-sandbox-cleanup.mjs', [], { RUN_SANDBOX_CLEANUP_CHECK: '1' })
   run('scripts/ci-browser.mjs', [], { TEST_APP_URL: base })
