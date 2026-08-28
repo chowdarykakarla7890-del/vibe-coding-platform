@@ -35,7 +35,11 @@ nonce changes across requests. A separate disposable browser context tests
 blocked inline scripts, handlers, eval, connections and frames, along with
 trusted dynamic script loading and an isolated allowed preview frame. Expected
 attack-probe violations never weaken the ordinary application's clean-console
-gate. Existing real local email/PKCE, project/history and Monaco flows run under
+gate. Attack probes use browser-parsed fixture HTML with the actual response
+policy, not DevTools evaluation (which can bypass eval restrictions). The
+unnonced injection is parser-inserted; `strict-dynamic` intentionally trusts
+scripts created dynamically by already trusted code. Existing real local
+email/PKCE, project/history and Monaco flows run under
 the policy without disabling CSP. Tests neither provision paid resources nor
 modify production data.
 
@@ -46,3 +50,5 @@ separate gates. No new policy is claimed to be active on the live deployment.
 
 References: the bundled Next.js Content Security Policy guide and
 [current Supabase SSR cookie-refresh guidance](https://supabase.com/docs/guides/auth/server-side/creating-a-client?queryGroups=framework&framework=nextjs).
+Probe semantics follow the [CSP3 specification](https://www.w3.org/TR/CSP/)
+and [Chrome Runtime evaluation contract](https://chromedevtools.github.io/devtools-protocol/v8/Runtime/#method-evaluate).

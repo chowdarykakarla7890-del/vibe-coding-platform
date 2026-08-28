@@ -1,6 +1,33 @@
 import assert from 'node:assert/strict'
 import { checkHtmlSecurity } from './check-html-security.mjs'
 
+const frameOrigin = 'https://codetutor-csp-fixture.vercel.run'
+
+/** Parsed by the browser, never executed through DevTools evaluate (which can
+ * bypass the string-evaluation policy). The intentionally unnonced script is
+ * parser-inserted: strict-dynamic trusts non-parser-inserted descendants. */
+export function securityProbeHtml(nonce) {
+  assert.match(nonce, /^[A-Za-z0-9+/]{24}$/)
+  return `<!doctype html><html lang="en"><head><title>Isolated security probe</title>
+    <script nonce="${nonce}">
+      window.__cspViolations=[];
+      document.addEventListener('securitypolicyviolation',event=>window.__cspViolations.push(event.effectiveDirective));
+      window.addEventListener('message',event=>{if(event.origin===${JSON.stringify(frameOrigin)}&&event.data?.cspFrameLoaded)window.__cspFrame=event.data});
+    </script></head><body>
+    <script>window.__cspInlineExecuted=true;</script>
+    <button id="handler-probe" onclick="window.__cspHandlerExecuted=true">Handler probe</button>
+    <script nonce="${nonce}">
+      window.__cspTrustedExecuted=true;
+      document.getElementById('handler-probe').click();
+      try { new Function('window.__cspEvalExecuted=true')() } catch { window.__cspEvalBlocked=true }
+      fetch('https://notallowed.invalid/csp-probe').catch(()=>{window.__cspFetchBlocked=true});
+      const child=document.createElement('script');child.src='/__codetutor_csp_child.js';document.body.appendChild(child);
+      const allowed=document.createElement('iframe');allowed.setAttribute('sandbox','allow-scripts allow-same-origin');
+      allowed.src=${JSON.stringify(`${frameOrigin}/`)};document.body.appendChild(allowed);
+      const denied=document.createElement('iframe');denied.src='https://notallowed.invalid/frame';document.body.appendChild(denied);
+    </script></body></html>`
+}
+
 /** Dedicated context: expected attack-probe violations must not weaken the
  * normal application's zero-warning/error gate. No paid endpoints are called. */
 export async function checkBrowserSecurity({ browser, base, expect }) {
@@ -20,41 +47,25 @@ export async function checkBrowserSecurity({ browser, base, expect }) {
     outsideRequests++; return route.abort()
   })
   await page.route(`${base}/__codetutor_csp_child.js`, route => route.fulfill({ contentType: 'text/javascript', body: 'window.__cspChildExecuted = true;' }))
-  const frameOrigin = 'https://codetutor-csp-fixture.vercel.run'
   await page.route(`${frameOrigin}/`, route => route.fulfill({ contentType: 'text/html', body: `<script>let parentReadable=false;try{parent.document.body;parentReadable=true}catch{}parent.postMessage({cspFrameLoaded:true,parentReadable},${JSON.stringify(base)})</script>` }))
   try {
     const response = await page.goto('/sign-in')
     phase = 'document nonce validation'
-    checkHtmlSecurity(await response.headerValue('content-security-policy'), await response.text())
+    const policy = await response.headerValue('content-security-policy')
+    const nonce = checkHtmlSecurity(policy, await response.text())
     phase = 'sign-in hydration'
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue with email', exact: true })).toBeEnabled()
     assert.equal(errors.length, 0, 'Normal sign-in must initialize without CSP failures.')
     phase = 'isolated script and frame probes'
     probing = true
-    await page.evaluate(({ frameOrigin }) => {
-      window.__cspViolations = []
-      document.addEventListener('securitypolicyviolation', event => window.__cspViolations.push(event.effectiveDirective))
-      window.addEventListener('message', event => { if (event.origin === frameOrigin && event.data?.cspFrameLoaded) window.__cspFrame = event.data })
-      const blocked = document.createElement('script')
-      blocked.textContent = 'window.__cspInlineExecuted = true;'
-      document.body.appendChild(blocked)
-      const button = document.createElement('button')
-      button.setAttribute('onclick', 'window.__cspHandlerExecuted = true;')
-      document.body.appendChild(button); button.click(); button.remove()
-      const trusted = document.createElement('script')
-      trusted.nonce = document.querySelector('script[nonce]').nonce
-      trusted.textContent = `window.__cspTrustedExecuted=true;
-        try { new Function('window.__cspEvalExecuted=true')() } catch { window.__cspEvalBlocked=true }
-        fetch('https://notallowed.invalid/csp-probe').catch(()=>{window.__cspFetchBlocked=true});
-        const child=document.createElement('script');child.src='/__codetutor_csp_child.js';document.body.appendChild(child);`
-      document.body.appendChild(trusted)
-      const allowed = document.createElement('iframe')
-      allowed.setAttribute('sandbox', 'allow-scripts allow-same-origin')
-      allowed.src = `${frameOrigin}/`; document.body.appendChild(allowed)
-      const denied = document.createElement('iframe')
-      denied.src = 'https://notallowed.invalid/frame'; document.body.appendChild(denied)
-    }, { frameOrigin })
+    // Use the actual document policy without altering it. Only this disposable
+    // fixture contains attacks; ordinary app pages still require clean logs.
+    await page.route(`${base}/__codetutor_csp_probe`, route => route.fulfill({
+      contentType: 'text/html', headers: { 'Content-Security-Policy': policy, 'Cache-Control': 'no-store' },
+      body: securityProbeHtml(nonce),
+    }))
+    await page.goto('/__codetutor_csp_probe')
     await expect.poll(() => page.evaluate(() => Boolean(window.__cspChildExecuted && window.__cspEvalBlocked && window.__cspFetchBlocked && window.__cspFrame?.cspFrameLoaded))).toBe(true)
     phase = 'probe result validation'
     const result = await page.evaluate(() => ({ inline: Boolean(window.__cspInlineExecuted), handler: Boolean(window.__cspHandlerExecuted),
