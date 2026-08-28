@@ -65,6 +65,10 @@ without an external font download.
   authenticated database-backed source reads. It types into the actual Monaco
   editor, renders a changed-line diff, verifies worker origins, runs axe, and
   holds the loader response to check basic-mode recovery and draft preservation.
+  Axe's browser helper is injected in a lexical scope without AMD/CommonJS
+  bindings: repeated accessibility scans must not register test modules in
+  Monaco's loader. The page's globals remain untouched, every existing axe rule
+  stays enabled, and all console warnings/errors still fail verification.
 - The browser editor fixture simulates **only** VM status for an owned synthetic
   expired registration, forbids VM/file mutations and leaves saved source
   unchanged. It is not a live sandbox save/restore or production deployment test.
