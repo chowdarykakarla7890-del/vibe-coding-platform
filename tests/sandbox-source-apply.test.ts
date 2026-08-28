@@ -40,7 +40,10 @@ try:
     with open(sys.argv[1]) as stream: files = json.load(stream)
     print(json.dumps({'applied': scope['apply'](files, sys.argv[2], sys.argv[3], os.getuid())}))
 except scope['ApplyFailure'] as error: print(json.dumps({'error': error.code}))
-except OSError as error: print(json.dumps({'error': 'OS_ERROR', 'errno': error.errno}))
+except OSError as error:
+    import traceback
+    frame = traceback.extract_tb(error.__traceback__)[-1]
+    print(json.dumps({'error': 'OS_ERROR', 'errno': error.errno, 'operation': frame.name, 'line': frame.lineno}))
 `
   const { stdout } = await execute('python3', ['-I', '-S', '-c', runner, input, workspace, state, interrupt ? 'interrupt' : 'normal'], { timeout: 10_000, maxBuffer: 1024 * 1024 })
   return JSON.parse(stdout) as { applied?: Array<{ path: string; revision: number }>; error?: string }

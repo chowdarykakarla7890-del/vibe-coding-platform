@@ -35,7 +35,7 @@ def apply_resolution(item, workspace, state_path='/var/lib/codetutor-source-v1',
         except FileExistsError: pass
         state = open_directory(state_path, trusted_uid)
         if stat.S_IMODE(os.fstat(state).st_mode) & 0o077: fail('SOURCE_JOURNAL_INVALID')
-        lock = os.open('apply.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=state)
+        lock = open_source_lock(state, trusted_uid, time.monotonic() + 0.05)
         # Bounded, no lock-order deadlock with shutdown or normal writes.
         try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError: fail('SOURCE_APPLY_BUSY')

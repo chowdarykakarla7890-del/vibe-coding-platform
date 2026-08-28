@@ -48,6 +48,8 @@ jobs:
       - run: pnpm exec next typegen
       - run: pnpm type-check
       - run: pnpm exec vitest run --maxWorkers=2
+      - name: Stress concurrent source-journal initialization
+        run: node scripts/check-source-concurrency.mjs
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm build
       - run: pnpm check:ci-smoke

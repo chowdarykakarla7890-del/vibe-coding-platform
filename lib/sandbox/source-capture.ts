@@ -83,8 +83,8 @@ def capture(workspace, tracked, state_path='/var/lib/codetutor-source-v1', trust
     total = excluded = visited = file_count = 0
     try:
         if stat.S_IMODE(os.fstat(state).st_mode) & 0o077: fail('SOURCE_JOURNAL_INVALID')
-        lock = os.open('apply.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=state)
         deadline = time.monotonic() + 5
+        lock = open_source_lock(state, trusted_uid, deadline)
         while True:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -30,6 +30,27 @@ def open_directory(path, owner):
         fail('SOURCE_PATH_UNSAFE')
     return fd
 
+def open_source_lock(state, owner, deadline):
+    # Concurrent first-time initialization can transiently report ENOENT from
+    # openat(O_CREAT). Retry that operation only, on the same trusted directory
+    # descriptor. Never unlink/replace the lock or weaken O_NOFOLLOW/flock.
+    for attempt in range(3):
+        try:
+            fd = os.open('apply.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=state)
+        except FileNotFoundError:
+            remaining = deadline - time.monotonic()
+            if attempt == 2 or remaining <= 0: fail('SOURCE_APPLY_BUSY')
+            time.sleep(min(0.02, remaining))
+            continue
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != owner or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) & 0o077:
+                fail('SOURCE_JOURNAL_INVALID')
+            return fd
+        except BaseException:
+            os.close(fd)
+            raise
+
 def parent_for(root, path, uid, gid):
     current = os.dup(root)
     try:
@@ -142,8 +163,8 @@ def apply(files, workspace, state_path='/var/lib/codetutor-source-v1', trusted_u
     parents = []
     try:
         if stat.S_IMODE(os.fstat(state).st_mode) & 0o077: fail('SOURCE_JOURNAL_INVALID')
-        lock = os.open('apply.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=state)
         deadline = time.monotonic() + 5
+        lock = open_source_lock(state, trusted_uid, deadline)
         while True:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -60,10 +60,10 @@ def close_runtime(workspace, runtime_path='/var/lib/codetutor-runtime-v1', state
         except FileExistsError: pass
         state = open_directory(state_path, trusted_uid)
         if stat.S_IMODE(os.fstat(state).st_mode) & 0o077: fail('SOURCE_JOURNAL_INVALID')
-        source_lock = os.open('apply.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=state)
+        deadline = time.monotonic() + 7
+        source_lock = open_source_lock(state, trusted_uid, deadline)
         root = os.open(workspace, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         owner = os.fstat(root).st_uid
-        deadline = time.monotonic() + 7
         while True:
             killed = kill_learner_namespaces(owner)
             try:
