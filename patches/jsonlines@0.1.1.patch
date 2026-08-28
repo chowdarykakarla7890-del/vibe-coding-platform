@@ -1,0 +1,35 @@
+diff --git a/lib/parser.js b/lib/parser.js
+index 3bfbd5fb968a9dca3502fad2d25c65a4467d04b4..12702b0e0650dbc4614cdd66f8644f99924ebb95 100644
+--- a/lib/parser.js
++++ b/lib/parser.js
+@@ -1,4 +1,5 @@
+ var Transform = require('stream').Transform
++var StringDecoder = require('string_decoder').StringDecoder
+ 
+ function Parser (options) {
+   if (!(this instanceof Parser)) {
+@@ -9,6 +10,7 @@ function Parser (options) {
+ 
+   Transform.call(this, { objectMode: true })
+   this._memory = ''
++  this._decoder = new StringDecoder('utf8')
+   this._emitInvalidLines = (options.emitInvalidLines || false)
+ }
+ 
+@@ -42,13 +44,15 @@ Parser.prototype._handleLines = function (lines, cb) {
+ }
+ 
+ Parser.prototype._transform = function (chunk, encoding, cb) {
+-  var lines = (this._memory + chunk.toString()).split('\n')
++  var text = typeof chunk === 'string' ? chunk : this._decoder.write(chunk)
++  var lines = (this._memory + text).split('\n')
+ 
+   this._memory = lines.pop()
+   this._handleLines(lines, cb)
+ }
+ 
+ Parser.prototype._flush = function (cb) {
++  this._memory += this._decoder.end()
+   if (!this._memory) return cb(null)
+ 
+   var line = this._memory

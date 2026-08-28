@@ -2,6 +2,8 @@ import type { ReasoningUIPart } from 'ai'
 import { MessageSpinner } from '../message-spinner'
 import { useReasoningContext } from '../message'
 import { Streamdown } from 'streamdown'
+import { ChevronDownIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function Reasoning({
   part,
@@ -30,20 +32,35 @@ export function Reasoning({
   }
 
   return (
-    <div
-      className="text-sm border border-border bg-background rounded-md cursor-pointer hover:bg-accent/30 transition-colors"
-      onClick={handleClick}
-    >
-      <div className="px-3 py-2">
-        <div className="text-secondary-foreground font-mono leading-normal">
-          {isExpanded || !hasMoreContent ? (
+    <div className="rounded-md border border-border bg-background text-sm">
+      {hasMoreContent ? (
+        <button
+          aria-expanded={isExpanded}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-secondary-foreground transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          onClick={handleClick}
+          type="button"
+        >
+          <span className="min-w-0 flex-1 truncate">{firstLine}</span>
+          <ChevronDownIcon
+            aria-hidden="true"
+            className={cn(
+              'size-3.5 shrink-0 transition-transform',
+              isExpanded && 'rotate-180'
+            )}
+          />
+          <span className="sr-only">
+            {isExpanded ? 'Collapse reasoning' : 'Expand reasoning'}
+          </span>
+        </button>
+      ) : null}
+      {isExpanded || !hasMoreContent ? (
+        <div className={cn('px-3 py-2', hasMoreContent && 'border-t border-border')}>
+          <div className="font-mono leading-normal text-secondary-foreground">
             <Streamdown>{text}</Streamdown>
-          ) : (
-            <div className="overflow-hidden">{firstLine}</div>
-          )}
-          {isStreaming && isExpanded && <MessageSpinner />}
+            {isStreaming && <MessageSpinner />}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

@@ -22,9 +22,14 @@ export function getModelOptions(
   modelId: string,
   options?: { reasoningEffort?: 'low' | 'medium' | 'high' }
 ): ModelOptions {
+  // Keep saved selections and modelId URLs stable when the catalog renames
+  // a creator. This is the same Grok model, not an automatic model fallback.
+  const gatewayModelId = modelId === Models.XaiGrok41Reasoning
+    ? 'spacexai/grok-4.1-fast-reasoning'
+    : modelId
   if (modelId === Models.OpenAIGPT53Codex) {
     return {
-      model: gateway(modelId),
+      model: gateway(gatewayModelId),
       providerOptions: {
         openai: {
           include: ['reasoning.encrypted_content'],
@@ -41,7 +46,7 @@ export function getModelOptions(
     modelId === Models.AnthropicClaudeOpus46
   ) {
     return {
-      model: gateway(modelId),
+      model: gateway(gatewayModelId),
       headers: { 'anthropic-beta': 'fine-grained-tool-streaming-2025-05-14' },
       providerOptions: {
         anthropic: {
@@ -52,6 +57,6 @@ export function getModelOptions(
   }
 
   return {
-    model: gateway(modelId),
+    model: gateway(gatewayModelId),
   }
 }

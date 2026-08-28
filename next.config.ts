@@ -1,21 +1,24 @@
 import type { NextConfig } from 'next'
 import { withBotId } from 'botid/next/config'
+import { assertDeploymentEnvironment } from './lib/deployment/environment'
+import { securityHeaders } from './lib/security-headers'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { prepareMonaco } from './scripts/prepare-monaco.mjs'
+
+assertDeploymentEnvironment(process.env, process.versions.node)
 
 const nextConfig: NextConfig = {
-  webpack(config) {
-    config.module.rules.push({
-      test: /\.md/,
-      type: 'asset/source',
-    })
-    return config
+  headers() {
+    return [{ source: '/:path*', headers: securityHeaders }]
   },
-  turbopack: {
-    rules: {
-      '*.md': {
-        loaders: ['raw-loader'],
-        as: '*.js',
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/playground',
+        permanent: false,
       },
-    },
+    ]
   },
   images: {
     remotePatterns: [
@@ -32,4 +35,7 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withBotId(nextConfig)
+export default function config(phase: string) {
+  if (phase === PHASE_DEVELOPMENT_SERVER || phase === PHASE_PRODUCTION_BUILD) prepareMonaco()
+  return withBotId(nextConfig)
+}

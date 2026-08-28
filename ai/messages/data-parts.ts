@@ -11,6 +11,7 @@ export const dataPartSchema = z.object({
     error: errorSchema.optional(),
   }),
   'generating-files': z.object({
+    sandboxId: z.string().optional(),
     paths: z.array(z.string()),
     status: z.enum(['generating', 'uploading', 'uploaded', 'done', 'error']),
     error: errorSchema.optional(),
@@ -25,8 +26,11 @@ export const dataPartSchema = z.object({
     error: errorSchema.optional(),
   }),
   'get-sandbox-url': z.object({
+    // Optional only for saved messages written before workspace fencing.
+    sandboxId: z.string().optional(),
     url: z.string().optional(),
-    status: z.enum(['loading', 'done']),
+    status: z.enum(['loading', 'done', 'error']),
+    error: errorSchema.optional(),
   }),
   'report-errors': z.object({
     summary: z.string(),

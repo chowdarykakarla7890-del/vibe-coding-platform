@@ -1,0 +1,5 @@
+# Markdown hard breaks inside typed prompts are deliberate.
+ai/tools/*.prompt.ts whitespace=-blank-at-eol
+# Unified patch context includes leading spaces/tabs and blank context lines.
+# Reformatting these files changes the patched dependency contract/hash.
+patches/*.patch -whitespace

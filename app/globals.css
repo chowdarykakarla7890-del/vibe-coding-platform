@@ -3,42 +3,42 @@
 @source "../node_modules/streamdown/dist/*.js";
 
 :root {
-  --background: rgb(255, 255, 255);
-  --foreground: rgb(10, 10, 10);
-  --card: rgb(255, 255, 255);
-  --card-foreground: rgb(10, 10, 10);
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: rgb(10, 10, 10);
-  --primary: rgb(41, 41, 41);
-  --primary-foreground: rgb(250, 250, 250);
-  --secondary: rgb(250, 250, 250);
-  --secondary-foreground: rgb(90, 90, 90);
-  --muted: rgb(240, 240, 240);
-  --muted-foreground: rgb(113, 113, 113);
-  --accent: rgb(245, 245, 245);
-  --accent-foreground: oklch(57.61% 0.2508 258.23);
-  --destructive: rgb(231, 0, 11);
-  --destructive-foreground: rgb(245, 245, 245);
-  --border: rgb(229, 229, 229);
-  --input: rgb(229, 229, 229);
-  --ring: rgb(161, 161, 161);
+  --background: rgb(17, 18, 20);
+  --foreground: rgb(239, 239, 237);
+  --card: rgb(24, 25, 27);
+  --card-foreground: rgb(239, 239, 237);
+  --popover: rgb(32, 33, 36);
+  --popover-foreground: rgb(239, 239, 237);
+  --primary: rgb(239, 239, 237);
+  --primary-foreground: rgb(24, 25, 27);
+  --secondary: rgb(34, 35, 38);
+  --secondary-foreground: rgb(196, 197, 194);
+  --muted: rgb(39, 40, 43);
+  --muted-foreground: rgb(157, 158, 156);
+  --accent: rgb(48, 49, 52);
+  --accent-foreground: rgb(239, 239, 237);
+  --destructive: rgb(255, 116, 116);
+  --destructive-foreground: rgb(24, 25, 27);
+  --border: rgb(53, 54, 57);
+  --input: rgb(65, 66, 69);
+  --ring: rgb(139, 140, 142);
   --chart-1: rgb(115, 115, 115);
   --chart-2: rgb(115, 115, 115);
   --chart-3: rgb(115, 115, 115);
   --chart-4: rgb(115, 115, 115);
   --chart-5: rgb(115, 115, 115);
-  --sidebar: rgb(250, 250, 250);
-  --sidebar-foreground: rgb(10, 10, 10);
-  --sidebar-primary: rgb(23, 23, 23);
-  --sidebar-primary-foreground: rgb(250, 250, 250);
-  --sidebar-accent: rgb(245, 245, 245);
-  --sidebar-accent-foreground: rgb(23, 23, 23);
-  --sidebar-border: rgb(229, 229, 229);
-  --sidebar-ring: rgb(161, 161, 161);
+  --sidebar: rgb(20, 21, 23);
+  --sidebar-foreground: rgb(239, 239, 237);
+  --sidebar-primary: rgb(239, 239, 237);
+  --sidebar-primary-foreground: rgb(24, 25, 27);
+  --sidebar-accent: rgb(39, 40, 43);
+  --sidebar-accent-foreground: rgb(239, 239, 237);
+  --sidebar-border: rgb(53, 54, 57);
+  --sidebar-ring: rgb(139, 140, 142);
   --font-sans: Geist, sans-serif;
   --font-serif: Geist Mono, monospace;
   --font-mono: Geist Mono, monospace;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --shadow-2xs: 0px 1px 0px 0px hsl(0 0% 0% / 0);
   --shadow-xs: 0px 1px 0px 0px hsl(0 0% 0% / 0);
   --shadow-sm: rgba(0, 0, 0, 0) 0px 0px 0px 0px,
@@ -59,6 +59,17 @@
   --spacing: 0.25rem;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(83 84 87) transparent;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
 .dark {
   --background: rgb(10, 10, 10);
   --foreground: rgb(250, 250, 250);
@@ -75,7 +86,7 @@
   --accent: rgb(64, 64, 64);
   --accent-foreground: rgb(250, 250, 250);
   --destructive: rgb(255, 100, 103);
-  --destructive-foreground: rgb(38, 38, 38);
+  --destructive-foreground: rgb(24, 25, 27);
   --border: rgb(56, 56, 56);
   --input: rgb(82, 82, 82);
   --ring: rgb(115, 115, 115);
@@ -126,6 +137,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);

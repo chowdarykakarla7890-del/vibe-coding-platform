@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/internal/sandbox-cleanup",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/source-capture",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/internal/archive-cleanup",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

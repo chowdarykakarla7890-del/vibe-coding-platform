@@ -1,69 +1,24 @@
-import { useState, useEffect, useCallback } from 'react'
+import useSWR from 'swr'
 
-interface DisplayModel {
+export interface DisplayModel {
   id: string
   label: string
+  tier: 'primary' | 'affordable'
 }
 
-const MAX_RETRIES = 3
-const RETRY_DELAY_MILLIS = 5000
+async function fetchModels(path: string): Promise<DisplayModel[]> {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error('Failed to fetch models')
+  const data = await response.json()
+  if (!Array.isArray(data.models)) throw new Error('Invalid model response')
+  return data.models.map((model: { id: string; name: string; tier: DisplayModel['tier'] }) => ({ id: model.id, label: model.name, tier: model.tier }))
+}
 
 export function useAvailableModels() {
-  const [models, setModels] = useState<DisplayModel[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
-
-  const fetchModels = useCallback(
-    async (isRetry: boolean = false) => {
-      if (!isRetry) {
-        setIsLoading(true)
-        setError(null)
-      }
-
-      try {
-        const response = await fetch('/api/models')
-        if (!response.ok) {
-          throw new Error('Failed to fetch models')
-        }
-        const data = await response.json()
-        const newModels = data.models.map(
-          (model: { id: string; name: string }) => ({
-            id: model.id,
-            label: model.name,
-          })
-        )
-        setModels(newModels)
-        setError(null)
-        setRetryCount(0)
-        setIsLoading(false)
-      } catch (err) {
-        setError(
-          err instanceof Error ? err : new Error('Failed to fetch models')
-        )
-        if (retryCount < MAX_RETRIES) {
-          setRetryCount((prev) => prev + 1)
-          setIsLoading(true)
-        } else {
-          setIsLoading(false)
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [retryCount]
-  )
-
-  useEffect(() => {
-    if (retryCount === 0) {
-      fetchModels(false)
-    } else if (retryCount > 0 && retryCount <= MAX_RETRIES) {
-      const timerId = setTimeout(() => {
-        fetchModels(true)
-      }, RETRY_DELAY_MILLIS)
-      return () => clearTimeout(timerId)
-    }
-  }, [retryCount, fetchModels])
-
-  return { models, isLoading, error }
+  const { data, error, isLoading } = useSWR('/api/models', fetchModels, {
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
+    revalidateOnFocus: false,
+  })
+  return { models: data ?? [], isLoading, error: error instanceof Error ? error : null }
 }

@@ -1,21 +1,23 @@
 import type { UIMessageStreamWriter, UIMessage } from 'ai'
 import type { DataPart } from '../messages/data-parts'
-import { Sandbox } from '@vercel/sandbox'
+import type { SandboxAccess } from './sandbox-access'
 import { getRichError } from './get-rich-error'
 import { tool } from 'ai'
-import description from './create-sandbox.md'
+import description from './create-sandbox.prompt'
 import z from 'zod/v3'
 
 interface Params {
+  sandboxAccess: SandboxAccess
   writer: UIMessageStreamWriter<UIMessage<never, DataPart>>
 }
 
-export const createSandbox = ({ writer }: Params) =>
+export const createSandbox = ({ writer, sandboxAccess }: Params) =>
   tool({
     description,
     inputSchema: z.object({
       timeout: z
         .number()
+        .int()
         .min(600000)
         .max(2700000)
         .optional()
@@ -23,7 +25,7 @@ export const createSandbox = ({ writer }: Params) =>
           'Maximum time in milliseconds the Vercel Sandbox will remain active before automatically shutting down. Minimum 600000ms (10 minutes), maximum 2700000ms (45 minutes). Defaults to 600000ms (10 minutes). The sandbox will terminate all running processes when this timeout is reached.'
         ),
       ports: z
-        .array(z.number())
+        .array(z.number().int().min(1024).max(65_535))
         .max(2)
         .optional()
         .describe(
@@ -38,10 +40,7 @@ export const createSandbox = ({ writer }: Params) =>
       })
 
       try {
-        const sandbox = await Sandbox.create({
-          timeout: timeout ?? 600000,
-          ports,
-        })
+        const sandbox = await sandboxAccess.create({ timeout, ports })
 
         writer.write({
           id: toolCallId,

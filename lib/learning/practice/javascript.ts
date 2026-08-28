@@ -1,0 +1,47 @@
+import { nodeFiles, practiceLesson } from './shared'
+
+const command = { executable: 'node', args: ['--test', 'lesson.test.mjs'] }
+export const javascriptPractice = [
+  practiceLesson({ track: 'javascript', stage: 'fundamentals', title: 'Quote a delivery',
+    summary: 'Turn a shop’s delivery rules into a small pure function with precise boundary behavior.',
+    concepts: ['conditionals', 'validation', 'pure functions'],
+    explanation: 'A pure function returns a result from its inputs without changing external state. Validate the input domain first; then order the delivery rules so free delivery does not accidentally override express delivery. Integer cents avoid floating-point currency rounding.',
+    instructions: ['Implement deliveryCents(subtotalCents, express) in src/main.mjs. Accept a nonnegative safe integer and a boolean; throw TypeError for any other input.', 'Express delivery always costs 1200 cents. Standard delivery costs 500 cents below a 5000-cent subtotal and is free at or above 5000. Return a number, not a formatted string.'],
+    hints: ['Separate validation from price calculation.', 'Check express before checking the free-standard-delivery threshold.', 'Test one cent below the threshold and exactly at the threshold.'],
+    reflectionQuestions: ['Why does the order of the express and free-delivery rules matter?', 'Which invalid input would a simple subtotal < 0 check miss?'],
+    examples: [{ input: 'deliveryCents(4999, false)', output: '500' }, { input: 'deliveryCents(5000, true)', output: '1200' }],
+    files: nodeFiles(`export function deliveryCents(subtotalCents, express) {\n  // TODO: validate inputs and apply the delivery rules.\n  throw new Error('Complete the TODO before submitting')\n}\n`, 'deliveryCents', [
+      ['standard threshold', 'assert.equal(deliveryCents(0, false), 500)\nassert.equal(deliveryCents(4999, false), 500)\nassert.equal(deliveryCents(5000, false), 0)'],
+      ['express overrides free delivery', 'assert.equal(deliveryCents(10000, true), 1200)'],
+      ['invalid domain', "for (const value of [-1, 1.5, NaN, Infinity, '5000', Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => deliveryCents(value, false), TypeError)\nassert.throws(() => deliveryCents(100, 'yes'), TypeError)"],
+    ]), command, quality: 'Uses explicit validation and readable rule ordering without side effects',
+  }),
+  practiceLesson({ track: 'javascript', stage: 'data-flow', title: 'Summarize a shopping cart',
+    summary: 'Filter unavailable lines and derive item count and integer-cent totals without changing the cart.',
+    concepts: ['arrays', 'reduction', 'immutability'],
+    explanation: 'Derived data should be recomputable from the source. A reduction carries a small accumulator across each cart line. Skipping unavailable items is a filtering decision, while accumulating quantities and prices is a separate transformation. Read-only input lets the same cart feed several views.',
+    instructions: ['Implement summarizeCart(lines). Each valid line has priceCents and quantity as nonnegative integers and available as a boolean. Inputs and resulting totals are within the safe-integer range; invalid input handling is not part of this exercise.', 'Return exactly { itemCount, totalCents }, including available lines only. Count quantities rather than line count; zero quantity contributes zero. Empty or entirely unavailable carts return both totals as zero. Do not mutate the array or its objects.'],
+    hints: ['Start both totals at zero.', 'A line contributes quantity items and priceCents * quantity cents.', 'Try freezing the input to catch accidental mutation.'],
+    reflectionQuestions: ['Why should itemCount differ from the number of cart lines?', 'How would storing a separate mutable total introduce stale data?'],
+    examples: [{ input: '[{priceCents:250, quantity:3, available:true}]', output: '{itemCount:3,totalCents:750}' }],
+    files: nodeFiles(`export function summarizeCart(lines) {\n  // TODO: derive totals without modifying lines.\n  throw new Error('Complete the TODO before submitting')\n}\n`, 'summarizeCart', [
+      ['empty cart', 'assert.deepEqual(summarizeCart([]), { itemCount: 0, totalCents: 0 })'],
+      ['availability, quantity and free items', 'assert.deepEqual(summarizeCart([{priceCents:250,quantity:3,available:true},{priceCents:999,quantity:4,available:false},{priceCents:0,quantity:2,available:true},{priceCents:800,quantity:0,available:true}]), {itemCount:5,totalCents:750})'],
+      ['source remains unchanged', 'const lines = Object.freeze([Object.freeze({priceCents:101,quantity:2,available:true})])\nassert.deepEqual(summarizeCart(lines), {itemCount:2,totalCents:202})\nassert.equal(lines[0].quantity, 2)'],
+    ]), command, quality: 'Derives totals in one clear pass and never mutates the source cart',
+  }),
+  practiceLesson({ track: 'javascript', stage: 'composition', title: 'Build an immutable task reducer',
+    summary: 'Compose add, toggle and remove transitions while preserving previous state and handling no-ops.',
+    concepts: ['reducers', 'state transitions', 'immutability'],
+    explanation: 'A reducer describes a state transition as a function of the previous state and an action. Returning the original reference for no-ops helps consumers skip unnecessary updates. Copy only changed objects so old state remains useful for undo, debugging, and UI rendering.',
+    instructions: ['Implement reduceTasks(state, action). State is an array of {id,title,done}; IDs and titles are strings. An add action is {type:"add",id,title}, toggle/remove actions are {type:"toggle"|"remove",id}.', 'Add a trimmed, nonempty title with done:false unless its ID already exists. Toggle only the matching task. Remove only the matching ID. Duplicate adds, blank titles, unknown action types and missing IDs are no-ops that return the identical state reference.', 'Never mutate the old array or objects. For a successful toggle return a new array and a new changed task while retaining references to unchanged tasks. Inputs otherwise match these shapes.'],
+    hints: ['Check whether an action changes anything before allocating a new array.', 'Use map for toggle and filter for removal.', 'A shallow array copy alone does not protect the task objects inside it.'],
+    reflectionQuestions: ['Why is returning the same reference for a no-op useful?', 'Which copies are necessary for a toggle, and which are unnecessary?'],
+    examples: [{ input: 'reduceTasks([], {type:"add",id:"a",title:" Read "})', output: '[{id:"a",title:"Read",done:false}]' }],
+    files: nodeFiles(`export function reduceTasks(state, action) {\n  // TODO: implement immutable task transitions and preserve no-op identity.\n  throw new Error('Complete the TODO before submitting')\n}\n`, 'reduceTasks', [
+      ['trim and add', 'assert.deepEqual(reduceTasks([], {type:"add",id:"a",title:" Read "}), [{id:"a",title:"Read",done:false}])'],
+      ['toggle copies only changed objects', 'const a=Object.freeze({id:"a",title:"Read",done:false}), b=Object.freeze({id:"b",title:"Write",done:true})\nconst old=Object.freeze([a,b]), next=reduceTasks(old,{type:"toggle",id:"a"})\nassert.notEqual(next,old)\nassert.deepEqual(next,[{...a,done:true},b])\nassert.equal(next[1],b)\nassert.equal(a.done,false)'],
+      ['no-ops and removal', 'const old=Object.freeze([Object.freeze({id:"a",title:"Read",done:false})])\nfor (const action of [{type:"toggle",id:"missing"},{type:"remove",id:"missing"},{type:"add",id:"a",title:"Other"},{type:"add",id:"b",title:" "},{type:"unknown"}]) assert.equal(reduceTasks(old,action),old)\nassert.deepEqual(reduceTasks(old,{type:"remove",id:"a"}),[])\nassert.equal(old.length,1)'],
+    ]), command, quality: 'Preserves state identity for no-ops and copies only changed state',
+  }),
+]

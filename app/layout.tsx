@@ -1,16 +1,11 @@
-import { NuqsAdapter } from 'nuqs/adapters/next/app'
-import { ChatProvider } from '@/lib/chat-context'
-import { CommandLogsStream } from '@/components/commands-logs/commands-logs-stream'
-import { ErrorMonitor } from '@/components/error-monitor/error-monitor'
-import { SandboxState } from '@/components/modals/sandbox-state'
 import { Toaster } from '@/components/ui/sonner'
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
+import { connection } from 'next/server'
 import './globals.css'
 
-const title = 'OSS Vibe Coding Platform'
-const description = `This is a demo of an end-to-end coding platform where the user can enter text prompts, and the agent will create a full stack application. It uses Vercel's AI Cloud services like Sandbox for secure code execution, AI Gateway for GPT-5 and other models support, Fluid Compute for efficient rendering and streaming, and it's built with Next.js and the AI SDK.`
+const title = 'CodeTutor Studio — Learn by Building'
+const description = `An AI coding tutor with editable sandbox projects, step-by-step lessons, live previews, a real terminal, tests, and evidence-based code assessment.`
 
 export const metadata: Metadata = {
   title,
@@ -32,22 +27,16 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  // A per-request nonce must never be baked into a statically rendered shell.
+  await connection()
   return (
     <html lang="en">
       <body className="antialiased">
-        <Suspense fallback={null}>
-          <NuqsAdapter>
-            <ChatProvider>
-              <ErrorMonitor>{children}</ErrorMonitor>
-            </ChatProvider>
-          </NuqsAdapter>
-        </Suspense>
+        {children}
         <Toaster />
-        <CommandLogsStream />
-        <SandboxState />
       </body>
     </html>
   )

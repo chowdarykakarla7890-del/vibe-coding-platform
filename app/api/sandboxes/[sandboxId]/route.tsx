@@ -1,31 +1,31 @@
-import { APIError } from '@vercel/sandbox/dist/api-client/api-error'
-import { NextRequest, NextResponse } from 'next/server'
-import { Sandbox } from '@vercel/sandbox'
+import { apiFailure, apiJson, assertSameOrigin, requireOwnedSandboxRecord, requireUser } from '@/lib/server/api'
+import { getOwnedSandbox, stopOwnedSandbox } from '@/lib/server/sandbox'
+import { readOwnedShutdown } from '@/lib/server/sandbox-shutdown'
 
-/**
- * We must change the SDK to add data to the instance and then
- * use it to retrieve the status of the Sandbox.
- */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ sandboxId: string }> }
-) {
-  const { sandboxId } = await params
+export const maxDuration = 60
+
+type Context = { params: Promise<{ sandboxId: string }> }
+
+export async function GET(request: Request, { params }: Context) {
+  const requestId = crypto.randomUUID()
   try {
-    const sandbox = await Sandbox.get({ sandboxId })
-    await sandbox.runCommand({
-      cmd: 'echo',
-      args: ['Sandbox status check'],
-    })
-    return NextResponse.json({ status: 'running' })
-  } catch (error) {
-    if (
-      error instanceof APIError &&
-      error.json.error.code === 'sandbox_stopped'
-    ) {
-      return NextResponse.json({ status: 'stopped' })
-    } else {
-      throw error
-    }
-  }
+    const { sandboxId } = await params
+    const auth = await requireUser(request)
+    const session = await requireOwnedSandboxRecord(sandboxId, auth, request.signal)
+    const shutdown = await readOwnedShutdown(auth, session)
+    if (shutdown) return apiJson(shutdown, requestId)
+    await getOwnedSandbox(auth, sandboxId, undefined, request.signal)
+    return apiJson({ status: 'running' }, requestId)
+  } catch (error) { return apiFailure(error, requestId) }
+}
+
+export async function DELETE(request: Request, { params }: Context) {
+  const requestId = crypto.randomUUID()
+  try {
+    const auth = await requireUser(request)
+    assertSameOrigin(request)
+    const { sandboxId } = await params
+    const result = await stopOwnedSandbox(auth, sandboxId)
+    return apiJson(result, requestId, result.stopped ? 200 : 202, result.stopped ? undefined : { 'Retry-After': '3' })
+  } catch (error) { return apiFailure(error, requestId) }
 }

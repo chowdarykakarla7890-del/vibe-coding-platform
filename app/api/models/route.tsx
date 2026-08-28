@@ -1,4 +1,4 @@
-import { MODEL_NAMES, SUPPORTED_MODELS } from '@/ai/constants'
+import { MODEL_NAMES, MODEL_TIERS, SUPPORTED_MODELS } from '@/ai/constants'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -7,6 +7,7 @@ export async function GET() {
       models: SUPPORTED_MODELS.map((id) => ({
         id,
         name: MODEL_NAMES[id] ?? id,
+        tier: MODEL_TIERS[id],
       })),
     },
     { headers: { 'Cache-Control': 'public, max-age=300' } }

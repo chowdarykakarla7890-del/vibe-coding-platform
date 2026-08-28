@@ -6,7 +6,13 @@ export interface Command {
   command: string
   args: string[]
   exitCode?: number
+  error?: string
   logs?: CommandLog[]
+  logCursor?: string
+  logsComplete?: boolean
+  logsTruncated?: boolean
+  logError?: string
+  status?: 'running' | 'done' | 'error'
 }
 
 export interface CommandLog {
