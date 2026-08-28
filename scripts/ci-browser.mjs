@@ -5,6 +5,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { assertBrowserCiEnvironment, localEmailVerificationLink } from './browser-fixtures.mjs'
 import { isolatedBuildEnvironment } from './ci-smoke.mjs'
 import { checkBrowserEditor } from './check-browser-editor.mjs'
+import { browserDiagnostic } from './browser-diagnostics.mjs'
 
 assertBrowserCiEnvironment(process.env, readdirSync('.'))
 const { chromium, expect } = await import('@playwright/test')
@@ -55,9 +56,9 @@ async function actor(label) {
     return origin === base || origin === 'http://127.0.0.1:54321' ? route.continue() : route.abort('blockedbyclient')
   })
   const page = await context.newPage()
-  page.on('pageerror', () => diagnostics.push({ actor: label, kind: 'pageerror' }))
+  page.on('pageerror', error => diagnostics.push({ actor: label, kind: 'pageerror', stage, ...browserDiagnostic(error.message, error.stack) }))
   page.on('console', message => {
-    if (['error', 'warning'].includes(message.type())) diagnostics.push({ actor: label, kind: message.type(), category: /hydration|didn't match/i.test(message.text()) ? 'hydration' : /update depth/i.test(message.text()) ? 'update-depth' : 'other' })
+    if (['error', 'warning'].includes(message.type())) diagnostics.push({ actor: label, kind: message.type(), stage, ...browserDiagnostic(message.text(), message.location().url) })
   })
   return { id: created.data.user.id, email, context, page }
 }
@@ -151,7 +152,7 @@ try {
     assert.equal(new URL(a.page.url()).searchParams.get('modelId'), 'openai/gpt-5-nano')
   })
   await step('pinned same-origin Monaco editing, diff, workers and stalled-download recovery', async () => {
-    await checkBrowserEditor({ account: a, projectId: projectA, admin, base, expect, scan })
+    await checkBrowserEditor({ account: a, projectId: projectA, admin, base, expect, scan, phase: name => { stage = name } })
   })
   await step('desktop keyboard navigation and collapsed sidebar', async () => {
     await a.page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()

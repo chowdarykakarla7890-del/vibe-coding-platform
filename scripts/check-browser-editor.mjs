@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
  * simulated; no sandbox is provisioned, and file mutation APIs are forbidden.
  * Run exclusively from ci-browser.mjs after its disposable-environment guard.
  */
-export async function checkBrowserEditor({ account, projectId, admin, base, expect, scan }) {
+export async function checkBrowserEditor({ account, projectId, admin, base, expect, scan, phase = () => {} }) {
   const { page } = account
   const sandboxId = `test-only-${randomUUID()}`
   const path = 'editor-check.ts'
@@ -43,6 +43,7 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
       p_create_only: true, p_files: [{ path, content: original, revision: 0 }] })
     assert.equal(source.error, null)
     await page.reload()
+    phase('editor runtime, typing and diff mount')
     console.log('Editor check: load pinned runtime, type and render actual diff.')
     const input = page.getByRole('textbox', { name: 'Source editor', exact: true })
     await expect(input).toBeVisible({ timeout: 20_000 })
@@ -52,6 +53,7 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Changes', exact: true }).click()
     await expect(page.locator('.monaco-diff-editor')).toBeVisible()
+    phase('diff accessibility and changed-line rendering')
     console.log('Editor check: accessible diff names and changed-line rendering.')
     // These are library control labels only, never source content or auth data.
     console.log(JSON.stringify({ diffInputs: await page.locator('.monaco-diff-editor [role="textbox"]').evaluateAll(nodes => nodes.map(node => ({
@@ -62,6 +64,7 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     await expect(page.locator('.modified-in-monaco-diff-editor [role="textbox"]')).toHaveAttribute('aria-label', /^Your draft\b/)
     await expect.poll(() => page.locator('.monaco-diff-editor .line-insert').count()).toBeGreaterThan(0)
     await scan(page, 'real Monaco diff')
+    phase('diff unmount, editor revert and worker verification')
     console.log('Editor check: return to editor, revert and verify asset/worker origins.')
     await page.getByRole('button', { name: 'Editor', exact: true }).click()
     await expect(input).toBeVisible()
@@ -77,6 +80,7 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     // A stalled script must yield a usable basic editor after 20 seconds, then
     // a late response must not replace the user's active draft or steal focus.
     await page.route(`${base}${assetPrefix}loader.js`, loaderRoute)
+    phase('delayed runtime and basic-mode recovery')
     console.log('Editor check: hold loader response and verify 20-second basic-mode fallback.')
     await page.reload({ waitUntil: 'domcontentloaded' })
     const basic = page.getByRole('textbox', { name: 'Source editor (basic mode)', exact: true })
@@ -94,6 +98,7 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     assert.deepEqual(saved.data, { content: original, revision: 1 }, 'Editing/reverting must not mutate saved source.')
     console.log('PASS: actual Monaco editing/diff/workers and basic recovery; saved source unchanged. VM status was simulated, not live.')
   } finally {
+    phase('editor fixture cleanup and reload')
     releaseLoader?.()
     await page.unroute(`${base}${assetPrefix}loader.js`, loaderRoute)
     page.off('request', watchRequest); page.off('worker', watchWorker)
