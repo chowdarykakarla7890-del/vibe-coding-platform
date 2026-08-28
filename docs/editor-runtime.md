@@ -26,6 +26,11 @@ the focused basic editor. Save or copy a draft before reloading to retry Monaco;
 the upstream loader caches rejected initialization, so the UI does not advertise
 a nonfunctional same-page retry.
 
+Actual-browser accessibility checks also exposed unnamed native diff inputs and
+low-contrast keywords on the default diff backgrounds. Both panes now have
+explicit accessible names, diff backgrounds retain readable syntax contrast,
+and the selected-file heading uses the existing readable muted-text token.
+
 ## Verification scope
 
 - Unit tests cover pin/config alignment, asset packaging, missing/mismatched

@@ -52,6 +52,8 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Changes', exact: true }).click()
     await expect(page.locator('.monaco-diff-editor')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Saved version', exact: true })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Your draft', exact: true })).toBeVisible()
     await expect.poll(() => page.locator('.monaco-diff-editor .line-insert').count()).toBeGreaterThan(0)
     await scan(page, 'real Monaco diff')
     await page.getByRole('button', { name: 'Editor', exact: true }).click()

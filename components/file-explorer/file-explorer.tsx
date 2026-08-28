@@ -162,7 +162,7 @@ export const FileExplorer = memo(function FileExplorer({
           Student editor
         </span>
         {selected && (
-          <span className="ml-auto text-gray-500">{selected.path}</span>
+          <span className="ml-auto text-muted-foreground">{selected.path}</span>
         )}
         <CreateNodeControl
           key={`${sandboxId ?? 'empty'}:${disabled ? 'readonly' : 'editable'}`}

@@ -12,6 +12,7 @@ import { cloudOperation } from '@/lib/learning/cloud-request'
 import { sourceReceiptSchema, sourceRevisionSchema } from '@/lib/source-version'
 import { readWithDeadline } from '@/lib/abortable-read'
 import { awaitMutationReceipt, MutationReceiptTimeoutError } from '@/lib/mutation-receipt'
+import { defineEditorTheme, EDITOR_THEME } from '@/lib/editor/theme'
 
 const MonacoEditor = dynamic(() => import('./monaco-runtime'), {
   ssr: false,
@@ -321,6 +322,7 @@ function FileEditor({
       <div className="min-h-0 flex-1">
         {mode === 'editor' ? (
           <MonacoEditor
+            beforeMount={defineEditorTheme}
             height="100%"
             language={detectLanguage(path)}
             onChange={(value) => {
@@ -334,17 +336,18 @@ function FileEditor({
             onMount={handleMount}
             onSave={() => saveRef.current()}
             options={{ ...editorOptions, ariaLabel: 'Source editor', readOnly: readOnly || deleted }}
-            theme="vs-dark"
+            theme={EDITOR_THEME}
             value={draft}
           />
         ) : (
           <MonacoDiffEditor
+            beforeMount={defineEditorTheme}
             height="100%"
             language={detectLanguage(path)}
             modified={draft}
-            options={{ ...editorOptions, readOnly: true, renderSideBySide: true }}
+            options={{ ...editorOptions, readOnly: true, renderSideBySide: true, originalAriaLabel: 'Saved version', modifiedAriaLabel: 'Your draft' }}
             original={savedValue}
-            theme="vs-dark"
+            theme={EDITOR_THEME}
           />
         )}
       </div>
