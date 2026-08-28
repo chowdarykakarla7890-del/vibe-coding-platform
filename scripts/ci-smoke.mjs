@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { installedMonaco } from './prepare-monaco.mjs'
 
 /** @param {Record<string, string | undefined>} env */
 export function isolatedBuildEnvironment(env = process.env) {
@@ -44,10 +44,7 @@ export async function withProductionServer(env, callback) {
 
 export async function checkAnonymousRoutes(base, fetcher = fetch) {
   const get = path => fetcher(new URL(path, base), { redirect: 'manual', signal: AbortSignal.timeout(5000) })
-  const require = createRequire(import.meta.url)
-  const pin = require('../package.json').dependencies['monaco-editor']
-  const packageRoot = dirname(require.resolve('monaco-editor/package.json'))
-  assert.equal(require('monaco-editor/package.json').version, pin)
+  const { pin, source: packageRoot } = installedMonaco()
   // Verify the deployed bytes, not just package.json. No auth or CDN required.
   for (const asset of ['loader.js', 'editor/editor.main.js', 'editor/editor.worker.js']) {
     const response = await get(`/vendor/monaco/${pin}/vs/${asset}`)

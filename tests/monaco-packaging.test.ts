@@ -2,7 +2,8 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { prepareMonaco } from '@/scripts/prepare-monaco.mjs'
+import { installedMonaco, prepareMonaco } from '@/scripts/prepare-monaco.mjs'
+import { MONACO_VERSION } from '@/lib/editor/runtime'
 import { config } from '@/proxy'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 
@@ -13,13 +14,19 @@ function fixture(pin = '0.56.0', installed = pin, incomplete = false) {
   const pkg = join(root, 'node_modules', 'monaco-editor')
   mkdirSync(pkg, { recursive: true })
   writeFileSync(join(root, 'package.json'), JSON.stringify({ dependencies: { 'monaco-editor': pin } }))
-  writeFileSync(join(pkg, 'package.json'), JSON.stringify({ version: installed }))
+  writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name: 'monaco-editor', version: installed, exports: { '.': './index.js' } }))
+  writeFileSync(join(pkg, 'index.js'), '// fake exported entry')
   const paths = ['min/vs/loader.js', 'min/vs/editor/editor.main.js', 'min/vs/editor/editor.worker.js', 'min/vs/language/typescript/tsWorker.js', 'LICENSE', 'ThirdPartyNotices.txt']
   for (const path of incomplete ? paths.slice(0, 1) : paths) {
     mkdirSync(dirname(join(pkg, path)), { recursive: true }); writeFileSync(join(pkg, path), `fixture ${path}`)
   }
   return { root, pkg }
 }
+
+it('resolves the actual installed package despite its private package.json export', () => {
+  expect(installedMonaco().pin).toBe(MONACO_VERSION)
+  expect(existsSync(join(installedMonaco().source, 'min/vs/loader.js'))).toBe(true)
+})
 
 it('packages loader, workers, language assets and notices from the installed pin', () => {
   const { root, pkg } = fixture()
