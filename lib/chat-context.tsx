@@ -1,7 +1,7 @@
 'use client'
 
 import type { DataPart } from '@/ai/messages/data-parts'
-import { mapDataToState } from '@/app/state'
+import { ProjectWorkspaceRegistry } from '@/lib/workspace/project-registry'
 import type { ChatUIMessage } from '@/components/chat/types'
 import { stopProjectChat } from '@/lib/learning/db'
 import { createProjectChatTransport } from '@/lib/chat/transport'
@@ -34,6 +34,7 @@ interface ProjectChatSession {
   projectId: string
   controller: AbortController
   signal: AbortSignal
+  workspace: ProjectWorkspaceRegistry
 }
 
 type RetryOptions = ChatRequestOptions & { messageId?: string }
@@ -62,10 +63,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const activeProjectIdRef = useRef(projectId)
   const updateProjectRef = useRef(updateProject)
   const sessionsRef = useRef(new Map<string, ProjectChatSession>())
+  const [workspace] = useState(() => new ProjectWorkspaceRegistry())
   const [activeSession, setActiveSession] = useState<ProjectChatSession>()
   const [projectSessions, setProjectSessions] = useState<ProjectChatSession[]>([])
   const [loadError, setLoadError] = useState<string>()
   const [loadVersion, setLoadVersion] = useState(0)
+
+  useLayoutEffect(() => workspace.connect(cloudOperation().signal), [workspace])
+
+  useLayoutEffect(() => {
+    const available = [...projects, { id: LOCAL_PROJECT_ID }]
+    if (isReady) workspace.syncProjects(available)
+    workspace.activate(available.find(project => project.id === projectId))
+  }, [isReady, projectId, projects, workspace])
 
   useLayoutEffect(() => {
     activeProjectIdRef.current = projectId
@@ -99,9 +109,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               })
           }
 
-          if (activeProjectIdRef.current === sessionProjectId) {
-            mapDataToState(data)
-          }
+          workspace.apply(sessionProjectId, data)
         },
         onError: (error) => {
           if (account.signal.aborted || sessionsRef.current.get(sessionProjectId)?.chat !== chat) return
@@ -115,9 +123,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         },
       })
 
-      return { chat, projectId: sessionProjectId, controller, signal: account.signal }
+      return { chat, projectId: sessionProjectId, controller, signal: account.signal, workspace }
     },
-    []
+    [workspace]
   )
 
   useEffect(() => {
@@ -238,6 +246,12 @@ function ProjectChatController({
   const isActive = status === 'submitted' || status === 'streaming'
   const persistedStatus = !isActive ? messages.at(-1)?.metadata?.persistenceStatus : undefined
   const remotePending = persistedStatus === 'pending'
+
+  useEffect(() => {
+    // Live parts are already handled by onData. Replaying full history on
+    // every token would add work to the 50 ms streaming render loop.
+    if (!isActive && !session.signal.aborted) session.workspace.reconcileMessages(session.projectId, messages)
+  }, [isActive, messages, session])
 
   useEffect(() => {
     if (!remotePending || historyRefreshError || recoveryError || operation || session.signal.aborted) return

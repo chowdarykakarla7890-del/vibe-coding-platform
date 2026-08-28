@@ -38,6 +38,7 @@ export function FileExplorer({ className }: Props) {
     setActiveFile,
     setDirtyFilePath,
     sourceUpdate,
+    activeFile,
   } =
     useSandboxStore()
   return (
@@ -47,6 +48,7 @@ export function FileExplorer({ className }: Props) {
       disabled={!projectId || status === 'stopped' || status === 'stopping' || registeredSandboxId !== sandboxId}
       sandboxId={sandboxId}
       paths={paths}
+      initialSelectedPath={activeFile}
       sourceUpdate={sourceUpdate}
       onPathsCreated={addPaths}
       onDirtyPathChange={setDirtyFilePath}

@@ -155,6 +155,10 @@ function ActivityWorkspaceSession({ activityId, mode }: { activityId: string; mo
       })
       account.assertActive()
       if (!mounted.current || task.controller.signal.aborted || visibleProject.current !== project.id) return
+      const visibleWorkspaceId = useSandboxStore.getState().projectId
+      // Project activation runs before passive effect cleanup. A receipt in
+      // that gap still belongs to the old activity, never the new workspace.
+      if (visibleWorkspaceId && visibleWorkspaceId !== project.id) return
       setSandboxId(result.sandboxId)
       addPaths(result.files.map(file => file.path))
       toast.success('Activity workspace is ready')

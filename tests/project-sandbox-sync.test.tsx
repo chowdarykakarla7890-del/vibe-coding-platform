@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProjectSandboxSync } from '@/components/learning/snapshot-observer'
 import { useSandboxStore } from '@/app/state'
 import { listFileSnapshots } from '@/lib/learning/db'
+import { ProjectWorkspaceRegistry } from '@/lib/workspace/project-registry'
 
 const learning = vi.hoisted(() => ({ activeProject: {
   id: 'project-a', sandboxId: 'sbx_a', previewUrl: undefined as string | undefined,
@@ -21,6 +22,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); useSandboxStore.getState().clearSandbox(); vi.restoreAllMocks(); vi.resetAllMocks() })
 
 describe('saved workspace hydration', () => {
+  it('hydrates a retained replacement without an older project receipt reattaching the retired sandbox', async () => {
+    const registry = new ProjectWorkspaceRegistry()
+    const disconnect = registry.connect(new AbortController().signal)
+    registry.activate(learning.activeProject)
+    registry.apply('project-a', { type: 'data-create-sandbox', id: 'new-vm', data: { sandboxId: 'sbx_replacement', status: 'done' } })
+    registry.apply('project-a', { type: 'data-generating-files', id: 'new-files', data: { sandboxId: 'sbx_replacement', paths: ['new.ts'], status: 'done' } })
+    try {
+      render(<ProjectSandboxSync />)
+      await waitFor(() => expect(useSandboxStore.getState().paths).toEqual(['new.ts', 'app/page.tsx']))
+      expect(useSandboxStore.getState().sandboxId).toBe('sbx_replacement')
+      expect(listFileSnapshots).toHaveBeenCalledOnce()
+    } finally { cleanup(); disconnect() }
+  })
+
   it('loads paths in Strict Mode even after its initial effect attached the sandbox', async () => {
     render(<StrictMode><ProjectSandboxSync /></StrictMode>)
     await waitFor(() => expect(useSandboxStore.getState().paths).toEqual(['app/page.tsx']))

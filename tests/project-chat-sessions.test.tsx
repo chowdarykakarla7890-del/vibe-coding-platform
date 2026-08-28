@@ -135,6 +135,41 @@ it('continues progressive output in A without rendering it or its sandbox in B',
   expect(state()).toMatchObject({ status: 'ready', text: 'Explain loops|Only A' })
 })
 
+it('restores background files, commands and preview to A without projecting them into B', async () => {
+  const view = render(tree()); await flush()
+  const a = await submit()
+  await switchProject(view, 'project-b')
+  act(() => useSandboxStore.getState().setSandboxId('sandbox-b'))
+  await act(async () => {
+    a.emit({ type: 'start', messageId: 'assistant-a' },
+      { type: 'data-create-sandbox', id: 'create-a', data: { sandboxId: 'sandbox-a', status: 'done' } },
+      { type: 'data-generating-files', id: 'files-a', data: { sandboxId: 'sandbox-a', paths: ['main.ts'], status: 'done' } },
+      { type: 'data-run-command', id: 'command-a', data: { sandboxId: 'sandbox-a', commandId: 'cmd-a', command: 'node', args: ['main.ts'], status: 'done', exitCode: 0 } },
+      { type: 'data-get-sandbox-url', id: 'preview-a', data: { sandboxId: 'sandbox-a', url: 'https://a.vercel.run', status: 'done' } },
+      { type: 'finish', finishReason: 'stop' })
+    a.close(); await vi.advanceTimersByTimeAsync(50)
+  })
+  expect(useSandboxStore.getState()).toMatchObject({ sandboxId: 'sandbox-b', commands: [], paths: [], url: undefined })
+  await switchProject(view, 'project-a')
+  expect(useSandboxStore.getState()).toMatchObject({ sandboxId: 'sandbox-a', paths: ['main.ts'], url: 'https://a.vercel.run', commands: [{ cmdId: 'cmd-a', status: 'done', exitCode: 0 }] })
+})
+
+it('keeps manual terminal output, cursors, selection and expiration when returning to a project', async () => {
+  const view = render(tree()); await flush()
+  act(() => {
+    const store = useSandboxStore.getState()
+    store.setSandboxId('sandbox-a'); store.addPaths(['a.ts']); store.setActiveFile('a.ts')
+    store.upsertCommand({ sandboxId: 'sandbox-a', cmdId: 'manual-a', command: 'node', args: ['a.ts'], status: 'done' })
+    store.addLog({ sandboxId: 'sandbox-a', cmdId: 'manual-a', cursor: 'v3.5.0', log: { stream: 'stdout', data: 'hello', timestamp: 1 } })
+    store.setSandboxStatus('sandbox-a', 'stopped')
+  })
+  await switchProject(view, 'project-b')
+  expect(useSandboxStore.getState().commands).toEqual([])
+  act(() => useSandboxStore.getState().setSandboxId('sandbox-b'))
+  await switchProject(view, 'project-a')
+  expect(useSandboxStore.getState()).toMatchObject({ sandboxId: 'sandbox-a', status: 'stopped', activeFile: 'a.ts', paths: ['a.ts'], commands: [{ cmdId: 'manual-a', logCursor: 'v3.5.0', logs: [{ data: 'hello' }] }] })
+})
+
 it('aborts a deleted project stream and disposes its watchdog', async () => {
   const view = render(tree()); await flush()
   const a = await submit()

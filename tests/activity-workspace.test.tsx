@@ -47,6 +47,21 @@ describe('activity startup lifecycle', () => {
     fetcher.mockImplementation(async (_url: string, init: RequestInit) => response(init.method === 'POST'
       ? { sandboxId: 'sandbox-new' } : init.method === 'DELETE' ? { status: 'stopped' } : { restored: 1 }))
   }
+  it('does not overwrite a newly activated workspace when an older activity acknowledgment arrives before effect cleanup', async () => {
+    startContext()
+    let acknowledge!: () => void
+    updateProject.mockResolvedValueOnce(undefined).mockImplementationOnce(() => new Promise<void>(resolve => { acknowledge = resolve }))
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Start activity' }))
+    await waitFor(() => expect(updateProject).toHaveBeenCalledTimes(2))
+    act(() => {
+      useSandboxStore.getState().setSandboxId('sandbox-b')
+      useSandboxStore.setState({ projectId: 'other-project' })
+    })
+    await act(async () => acknowledge())
+    expect(useSandboxStore.getState()).toMatchObject({ projectId: 'other-project', sandboxId: 'sandbox-b', paths: [] })
+    expect(toast.success).not.toHaveBeenCalled()
+  })
   it('preserves the fully restored sandbox and offers reopening after the final project acknowledgment fails', async () => {
     startContext()
     updateProject.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Missing save receipt'))

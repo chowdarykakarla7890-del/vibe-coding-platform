@@ -1,21 +1,33 @@
 import type { Command, CommandLog } from '@/components/commands-logs/types'
 import type { DataPart } from '@/ai/messages/data-parts'
 import type { ChatStatus, DataUIPart } from 'ai'
-import { create } from 'zustand'
+import { create, type StateCreator } from 'zustand'
+import { createStore } from 'zustand/vanilla'
 import { appendCommandLog } from '@/lib/commands/log-state'
 
-interface SandboxStore {
+export interface SandboxWorkspace {
+  projectId?: string
   sourceUpdate?: { path: string; revision: number; deleted: boolean; sequence: number }
-  notifySourceApplied: (sandboxId: string, file: { path: string; revision: number; deleted: boolean }) => void
   activeFile?: string
-  addLog: (data: { sandboxId: string; cmdId: string; log: CommandLog; cursor?: string }) => void
-  addPaths: (paths: string[]) => void
   chatStatus: ChatStatus
-  clearSandbox: () => void
   commands: Command[]
   dirtyFilePath?: string
   paths: string[]
   sandboxId?: string
+  status?: 'running' | 'stopping' | 'stopped'
+  studentEdits: number
+  url?: string
+  urlUUID?: string
+  workspaceTab: 'code' | 'preview'
+}
+
+interface SandboxStore extends SandboxWorkspace {
+  notifySourceApplied: (sandboxId: string, file: { path: string; revision: number; deleted: boolean }) => void
+  addLog: (data: { sandboxId: string; cmdId: string; log: CommandLog; cursor?: string }) => void
+  addPaths: (paths: string[]) => void
+  clearSandbox: () => void
+  replaceWorkspace: (workspace: SandboxWorkspace) => void
+  setWorkspaceTab: (tab: SandboxWorkspace['workspaceTab']) => void
   setChatStatus: (status: ChatStatus) => void
   setDirtyFilePath: (path?: string) => void
   setActiveFile: (path?: string) => void
@@ -23,14 +35,24 @@ interface SandboxStore {
   setSandboxStatus: (sandboxId: string, status: 'running' | 'stopping' | 'stopped') => void
   setUrl: (url: string, uuid: string) => void
   recordStudentEdit: () => void
-  status?: 'running' | 'stopping' | 'stopped'
-  studentEdits: number
   upsertCommand: (command: Omit<Command, 'startedAt'>) => void
-  url?: string
-  urlUUID?: string
 }
 
-export const useSandboxStore = create<SandboxStore>()((set) => ({
+export function emptyWorkspace(projectId?: string): SandboxWorkspace {
+  return { projectId, sourceUpdate: undefined, activeFile: undefined, chatStatus: 'ready', commands: [],
+    dirtyFilePath: undefined, paths: [], sandboxId: undefined, status: undefined, studentEdits: 0, url: undefined, urlUUID: undefined, workspaceTab: 'code' }
+}
+
+/** Copy data only: copying actions would redirect writes to a hidden store. */
+export function workspaceSnapshot(state: SandboxWorkspace): SandboxWorkspace {
+  const { projectId, sourceUpdate, activeFile, chatStatus, commands, dirtyFilePath, paths, sandboxId, status, studentEdits, url, urlUUID, workspaceTab } = state
+  return { projectId, sourceUpdate, activeFile, chatStatus, commands, dirtyFilePath, paths, sandboxId, status, studentEdits, url, urlUUID, workspaceTab }
+}
+
+const sandboxState: StateCreator<SandboxStore> = (set) => ({
+  ...emptyWorkspace(),
+  replaceWorkspace: (workspace) => set(workspaceSnapshot(workspace)),
+  setWorkspaceTab: (workspaceTab) => set({ workspaceTab }),
   notifySourceApplied: (sandboxId, file) => set((state) => state.sandboxId !== sandboxId ? state : ({
     sourceUpdate: { ...file, sequence: (state.sourceUpdate?.sequence ?? 0) + 1 },
     paths: file.deleted ? state.paths.filter(path => path !== file.path) : [...new Set([...state.paths, file.path])],
@@ -56,19 +78,7 @@ export const useSandboxStore = create<SandboxStore>()((set) => ({
       return nextPaths.length === state.paths.length ? state : { paths: nextPaths }
     }),
   chatStatus: 'ready',
-  clearSandbox: () =>
-    set(() => ({
-      sandboxId: undefined,
-      sourceUpdate: undefined,
-      status: undefined,
-      commands: [],
-      dirtyFilePath: undefined,
-      activeFile: undefined,
-      paths: [],
-      url: undefined,
-      urlUUID: undefined,
-      studentEdits: 0,
-    })),
+  clearSandbox: () => set(emptyWorkspace()),
   commands: [],
   paths: [],
   studentEdits: 0,
@@ -92,6 +102,7 @@ export const useSandboxStore = create<SandboxStore>()((set) => ({
       url: undefined,
       urlUUID: undefined,
       studentEdits: 0,
+      workspaceTab: 'code',
     })),
   setSandboxStatus: (sandboxId, status) => set((state) =>
     // A VM cannot resume after shutdown starts. Polls and shutdown receipts
@@ -114,28 +125,35 @@ export const useSandboxStore = create<SandboxStore>()((set) => ({
       const idx = existingIdx !== -1 ? existingIdx : state.commands.length
       const prev = state.commands[idx] ?? { startedAt: Date.now(), logs: [] }
       const cmds = [...state.commands]
-      cmds[idx] = { ...prev, ...cmd }
+      // A late tool update cannot turn a process that already finished back
+      // into a running command. Output/cursors are retained across updates.
+      cmds[idx] = { ...prev, ...cmd, ...(prev.status && prev.status !== 'running' && cmd.status === 'running'
+        ? { status: prev.status, exitCode: prev.exitCode, error: prev.error, background: prev.background } : {}) }
       return { commands: cmds }
     })
   },
-}))
+})
 
-export function mapDataToState(data: DataUIPart<DataPart>) {
+export const useSandboxStore = create<SandboxStore>()(sandboxState)
+export const createSandboxStore = () => createStore<SandboxStore>()(sandboxState)
+export type SandboxStateStore = ReturnType<typeof createSandboxStore>
+
+export function mapDataToState(data: DataUIPart<DataPart>, store: SandboxStateStore = useSandboxStore) {
   const {
     addPaths,
     setSandboxId,
     setUrl,
     upsertCommand,
-  } = useSandboxStore.getState()
+  } = store.getState()
 
     switch (data.type) {
       case 'data-create-sandbox':
-        if (data.data.sandboxId) {
+        if (data.data.status === 'done' && data.data.sandboxId) {
           setSandboxId(data.data.sandboxId)
         }
         break
       case 'data-generating-files':
-        if (data.data.sandboxId !== useSandboxStore.getState().sandboxId) break
+        if (data.data.sandboxId !== store.getState().sandboxId) break
         if (data.data.status === 'uploaded' || data.data.status === 'done') {
           addPaths(data.data.paths)
         }
@@ -160,7 +178,7 @@ export function mapDataToState(data: DataUIPart<DataPart>) {
         }
         break
       case 'data-get-sandbox-url':
-        if (data.data.url) {
+        if (data.data.status === 'done' && data.data.sandboxId === store.getState().sandboxId && data.data.sandboxId && data.data.url) {
           setUrl(data.data.url, crypto.randomUUID())
         }
         break

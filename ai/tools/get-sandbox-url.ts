@@ -33,7 +33,7 @@ export const getSandboxURL = ({ writer, sandboxAccess }: Params) =>
       writer.write({
         id: toolCallId,
         type: 'data-get-sandbox-url',
-        data: { status: 'loading' },
+        data: { sandboxId, status: 'loading' },
       })
 
       try {
@@ -42,7 +42,7 @@ export const getSandboxURL = ({ writer, sandboxAccess }: Params) =>
         writer.write({
           id: toolCallId,
           type: 'data-get-sandbox-url',
-          data: { url, status: 'done' },
+          data: { sandboxId, url, status: 'done' },
         })
 
         return { url }
@@ -56,6 +56,7 @@ export const getSandboxURL = ({ writer, sandboxAccess }: Params) =>
           id: toolCallId,
           type: 'data-get-sandbox-url',
           data: {
+            sandboxId,
             status: 'error',
             error: { message: richError.error.message },
           },

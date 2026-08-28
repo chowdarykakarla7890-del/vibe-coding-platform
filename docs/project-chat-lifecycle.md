@@ -29,9 +29,23 @@ Without an assistant ID, local Stop preserves the user message and marks the loc
 
 `tests/chat-stop-route.test.ts` covers generation-fenced filters, validation, ownership failure, redacted failures and bounded/cancelled database waits. The disposable-database HTTP suite also checks interruption, Retry reusing the row with a new request ID, late old Stop leaving the new pending generation untouched, and completed-response preservation. CI must pass these actual database assertions before this checkpoint is accepted. The clean CI browser suite exercises real local authentication/project history, but its existing scenario does not submit a paid generation.
 
+## Project-scoped workspace projection
+
+The account-lifetime registry now retains a separate workspace projection for each opened project. It includes the current sandbox identity/status, file paths and selection, source-update revision signal, terminal commands/output/cursors, edit count and Code/Preview selection. Only the active projection is exposed through the existing UI store. The registry copies data, never store action functions; editor/terminal actions still target the visible workspace.
+
+Live tool parts update the originating project's projection even when it is hidden. Returning to it restores that projection before the workspace is painted. Saved assistant command/preview parts are reconciled only for the current VM; old creation/file events are not replayed into authoritative saved source. This reconciliation is skipped during live streaming, which already receives `onData`, to avoid scanning all history on each token.
+
+Log subscribers remain visibility-scoped: leaving a project aborts its reader, returning resumes from the retained byte cursor, and completed output is not subscribed again. A command completed while hidden is discovered and drained on return. Already received output remains visible after expiration, but output not retrieved before the VM expires may be unavailable. This in-memory projection is not a durable terminal-output archive: a hard reload can reconstruct saved assistant command metadata, but not unsaved manual terminal history or its received output.
+
+New preview tool parts include `sandboxId`; legacy parts without it remain readable in chat but cannot set the workspace preview. Old/foreign/retired VM events are ignored. The preview component still obtains its actual iframe URL through the owner-validated preview endpoint. Replacing a VM resets its execution projection; a duplicate creation event or late project receipt cannot revive a stopped/retired VM. Source hydration respects a streamed replacement while its project receipt is still refreshing.
+
+Account cancellation, deletion and provider disposal remove the relevant projections and reject late callbacks. Activity startup also checks the activated workspace identity, closing the interval before old passive effects finish cleaning up. The existing unsaved-editor confirmation rules remain in place; restoring a selected file is not a claim that discarded draft text is saved by this registry.
+
+`tests/project-chat-sessions.test.tsx` reproduces and verifies the missing background files/commands/preview and cross-project terminal display. `tests/project-workspace-registry.test.ts` covers isolation, replacement, replay, account/deletion cleanup and stale progress. `tests/project-terminal-restoration.test.tsx` exercises the actual log subscriber through switches, cursor resumption and completion. File explorer, workbench, source hydration and activity-startup tests cover their corresponding remount/race behavior. Hosted two-project generation and preview rendering remain live release gates, not proven by these component tests.
+
 ## Remaining release checks
 
 - Verify the complete two-project flow against the actual Preview deployment and funded AI Gateway, including Stop, expiration and account changes.
-- Complete project-scoped restoration of terminal commands, preview and workspace state on returning to a background project. Retained chat controllers alone do not prove that full workspace projection is restored.
+- Verify project-scoped terminal/preview restoration against an actual hosted generation and owned VM, including expiration before logs are retrieved. Component tests do not prove the provider/VM boundary.
 - Confirm provider cancellation and durable interruption through the real server/database boundary, including a lost initial stream response.
 - Hosted Preview isolation, credential rotation, OAuth/email delivery and deployed worker monitoring remain separate release gates.

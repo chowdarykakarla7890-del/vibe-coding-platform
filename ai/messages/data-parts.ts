@@ -26,6 +26,8 @@ export const dataPartSchema = z.object({
     error: errorSchema.optional(),
   }),
   'get-sandbox-url': z.object({
+    // Optional only for saved messages written before workspace fencing.
+    sandboxId: z.string().optional(),
     url: z.string().optional(),
     status: z.enum(['loading', 'done', 'error']),
     error: errorSchema.optional(),

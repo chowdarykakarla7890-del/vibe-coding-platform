@@ -13,6 +13,11 @@ vi.mock('@/components/file-explorer/file-content', () => ({ FileContent: functio
 afterEach(() => { cleanup(); setCloudAccount(undefined); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('file explorer recovery rendering', () => {
+  it('reopens the retained selected file and expands its parent folders on a project remount', () => {
+    render(<FileExplorer className="" sandboxId="sandbox-a" paths={['first.ts', 'src/nested/selected.ts']} initialSelectedPath="src/nested/selected.ts" />)
+    expect(screen.getByTestId('opened-file').textContent).toBe('src/nested/selected.ts')
+    expect(screen.getByRole('button', { name: 'File selected.ts' })).toBeTruthy()
+  })
   it('starts a workspace directly, prevents double clicks and never dispatches a tutor prompt', async () => {
     let finish!: () => void
     const start = vi.fn(() => new Promise<void>(resolve => { finish = resolve }))

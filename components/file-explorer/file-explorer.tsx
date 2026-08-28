@@ -32,6 +32,7 @@ interface Props {
   disabled?: boolean
   paths: string[]
   sandboxId?: string
+  initialSelectedPath?: string
   sourceUpdate?: { path: string; revision: number; deleted: boolean; sequence: number }
   onSaved?: (path: string, content: string) => void
   onPathsCreated?: (paths: string[]) => void
@@ -45,6 +46,7 @@ export const FileExplorer = memo(function FileExplorer({
   disabled,
   paths,
   sandboxId,
+  initialSelectedPath,
   sourceUpdate,
   onSaved,
   onPathsCreated,
@@ -54,9 +56,9 @@ export const FileExplorer = memo(function FileExplorer({
 }: Props) {
   const fileTree = useMemo(() => buildFileTree(paths), [paths])
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    () => new Set()
+    () => new Set(initialSelectedPath?.split('/').slice(0, -1).map((_, index, parts) => `/${parts.slice(0, index + 1).join('/')}`) ?? [])
   )
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [selectedPath, setSelectedPath] = useState<string | null>(initialSelectedPath ?? null)
   const [dirtyPath, setDirtyPath] = useState<string | null>(null)
   const previousSandboxId = useRef(sandboxId)
 

@@ -12,14 +12,19 @@ export function ProjectSandboxSync() {
   const [loadError, setLoadError] = useState<string>()
   const [retryVersion, setRetryVersion] = useState(0)
   const projectId = activeProject?.id
-  const sandboxId = activeProject?.sandboxId
+  const attachedProjectId = useSandboxStore(state => state.projectId)
+  const attachedSandboxId = useSandboxStore(state => state.sandboxId)
+  // The retained session can already have received a newly-created VM while
+  // its project receipt is still refreshing. Do not reattach the older ID.
+  const sandboxId = attachedProjectId === projectId ? attachedSandboxId : activeProject?.sandboxId
+  const registeredSandboxId = activeProject?.sandboxId
   const previewUrl = activeProject?.previewUrl
   const workspaceKey = projectId && sandboxId ? `${projectId}:${sandboxId}` : undefined
 
   useEffect(() => {
     const state = useSandboxStore.getState()
     if (!projectId || !sandboxId) {
-      if (state.sandboxId) state.clearSandbox()
+      if (state.sandboxId && (!projectId || !state.projectId)) state.clearSandbox()
       return
     }
     const controller = new AbortController()
@@ -30,7 +35,7 @@ export function ProjectSandboxSync() {
     void readWithDeadline((signal) => listFileSnapshots(projectId, signal), controller.signal, 10_000,
       'Opening saved source files timed out.').then((files) => {
       const current = useSandboxStore.getState()
-      if (!controller.signal.aborted && current.sandboxId === sandboxId) {
+      if (!controller.signal.aborted && current.sandboxId === sandboxId && (!current.projectId || current.projectId === projectId)) {
         current.addPaths(files.map((file) => file.path))
         setLoadError(undefined)
       }
@@ -46,10 +51,10 @@ export function ProjectSandboxSync() {
 
   useEffect(() => {
     const current = useSandboxStore.getState()
-    if (sandboxId && current.sandboxId === sandboxId && previewUrl && current.url !== previewUrl) {
+    if (sandboxId && sandboxId === registeredSandboxId && current.sandboxId === sandboxId && previewUrl && !current.url) {
       current.setUrl(previewUrl, `saved-preview:${sandboxId}`)
     }
-  }, [projectId, sandboxId, previewUrl])
+  }, [projectId, sandboxId, registeredSandboxId, previewUrl])
 
   if (!workspaceKey || loadError !== workspaceKey) return null
   return <aside role="alert" className="fixed bottom-4 left-4 z-40 max-w-sm rounded-lg border border-border bg-card p-4 text-sm shadow-lg">

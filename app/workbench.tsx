@@ -5,15 +5,14 @@ import { Logs } from './logs'
 import { Preview } from './preview'
 import { Button } from '@/components/ui/button'
 import { Code2Icon, EyeIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useSandboxStore } from './state'
 import { cn } from '@/lib/utils'
 import { SourceRecovery } from '@/components/workspace/source-recovery'
 import { SandboxStop } from '@/components/workspace/sandbox-stop'
 
-type WorkspaceTab = 'code' | 'preview'
-
 export function Workbench({ className }: { className?: string }) {
-  const [tab, setTab] = useState<WorkspaceTab>('code')
+  const tab = useSandboxStore(state => state.workspaceTab)
+  const setTab = useSandboxStore(state => state.setWorkspaceTab)
 
   return (
     <section
