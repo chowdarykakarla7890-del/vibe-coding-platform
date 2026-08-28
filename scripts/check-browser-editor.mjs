@@ -53,9 +53,13 @@ export async function checkBrowserEditor({ account, projectId, admin, base, expe
     await page.getByRole('button', { name: 'Changes', exact: true }).click()
     await expect(page.locator('.monaco-diff-editor')).toBeVisible()
     console.log('Editor check: accessible diff names and changed-line rendering.')
+    // These are library control labels only, never source content or auth data.
+    console.log(JSON.stringify({ diffInputs: await page.locator('.monaco-diff-editor [role="textbox"]').evaluateAll(nodes => nodes.map(node => ({
+      label: node.getAttribute('aria-label'), native: node.classList.contains('native-edit-context'),
+    }))) }))
     // Monaco appends its localized accessibility-help shortcut to these names.
-    await expect(page.getByRole('textbox', { name: /^Saved version\b/ })).toBeVisible()
-    await expect(page.getByRole('textbox', { name: /^Your draft\b/ })).toBeVisible()
+    await expect(page.locator('.original-in-monaco-diff-editor [role="textbox"]')).toHaveAttribute('aria-label', /^Saved version\b/)
+    await expect(page.locator('.modified-in-monaco-diff-editor [role="textbox"]')).toHaveAttribute('aria-label', /^Your draft\b/)
     await expect.poll(() => page.locator('.monaco-diff-editor .line-insert').count()).toBeGreaterThan(0)
     await scan(page, 'real Monaco diff')
     console.log('Editor check: return to editor, revert and verify asset/worker origins.')

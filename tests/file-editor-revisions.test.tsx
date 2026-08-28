@@ -8,10 +8,10 @@ import { toast } from 'sonner'
 
 // Exercise editor state and request lifetimes without Monaco's browser worker.
 vi.mock('next/dynamic', () => ({ default: () => function TestEditor(props: {
-  value?: string; original?: string; modified?: string; onChange?: (value: string) => void; options?: { readOnly?: boolean }
+  value?: string; original?: string; modified?: string; onChange?: (value: string) => void; options?: { readOnly?: boolean; editContext?: boolean; originalAriaLabel?: string; modifiedAriaLabel?: string }
 }) {
-  if (props.original !== undefined) return <div><pre data-testid="original">{props.original}</pre><pre data-testid="modified">{props.modified}</pre></div>
-  return <textarea aria-label="Source editor" readOnly={props.options?.readOnly} value={props.value} onChange={(event) => props.onChange?.(event.target.value)} />
+  if (props.original !== undefined) return <div data-testid="comparison" data-edit-context={String(props.options?.editContext)}><pre data-testid="original" aria-label={props.options?.originalAriaLabel}>{props.original}</pre><pre data-testid="modified" aria-label={props.options?.modifiedAriaLabel}>{props.modified}</pre></div>
+  return <textarea aria-label="Source editor" data-edit-context={String(props.options?.editContext)} readOnly={props.options?.readOnly} value={props.value} onChange={(event) => props.onChange?.(event.target.value)} />
 } }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -29,6 +29,16 @@ beforeEach(() => setCloudAccount(crypto.randomUUID()))
 afterEach(() => { cleanup(); setCloudAccount(undefined); vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 describe('revision-aware editor', () => {
+  it('uses the stable input backend and explicit names for both diff buffers', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(initial()))
+    render(<FileContent sandboxId="sbx_a" path="main.ts" />)
+    await screen.findByRole('textbox')
+    expect(editor().dataset.editContext).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: 'Changes' }))
+    expect(screen.getByTestId('comparison').dataset.editContext).toBe('false')
+    expect(screen.getByTestId('original').getAttribute('aria-label')).toBe('Saved version')
+    expect(screen.getByTestId('modified').getAttribute('aria-label')).toBe('Your draft')
+  })
   it.each(['headers', 'body'] as const)('settles a stalled save %s without losing the draft or retrying the write', async (phase) => {
     const pending = deferred<Response>()
     const body = deferred<unknown>()

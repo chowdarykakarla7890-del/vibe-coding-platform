@@ -357,6 +357,9 @@ function FileEditor({
 
 const editorOptions = {
   automaticLayout: true,
+  // Chromium's experimental native EditContext leaves unfocused read-only
+  // diff inputs unnamed. Use Monaco's supported textarea backend consistently.
+  editContext: false,
   fontFamily: 'var(--font-geist-mono), Geist Mono, monospace',
   fontLigatures: true,
   fontSize: 13,
