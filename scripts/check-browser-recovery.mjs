@@ -84,11 +84,17 @@ export async function checkBrowserRecovery({ account, projectId, admin, base, ex
     await expect(expired).toBeVisible()
     // A button becoming enabled must not fade through disabled opacity. This
     // account also requests reduced motion: shared controls must honor it.
-    const controls = await page.locator('button.h-auto.items-start.text-left').evaluateAll(buttons => buttons.map(button => ({
+    // Recovery may open before the independently loaded chat history mounts
+    // its actions. Assert the actual ready boundary rather than sampling early.
+    const tutorButtons = page.locator('button.h-auto.items-start.text-left')
+    await expect(tutorButtons).toHaveCount(7)
+    const controls = await tutorButtons.evaluateAll(buttons => buttons.map(button => ({
       disabled: button.disabled, opacity: getComputedStyle(button).opacity,
       transition: getComputedStyle(button).transitionProperty,
     })))
-    assert.equal(controls.length, 7)
+    if (controls.some(control => control.transition !== 'none' || (!control.disabled && control.opacity !== '1'))) {
+      console.error(JSON.stringify({ recoveryControlStyles: controls }))
+    }
     for (const control of controls) {
       assert.equal(control.transition, 'none')
       if (!control.disabled) assert.equal(control.opacity, '1')
