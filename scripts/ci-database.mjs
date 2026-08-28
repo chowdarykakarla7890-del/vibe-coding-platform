@@ -43,5 +43,6 @@ await withProductionServer(env, async base => {
   await checkAnonymousRoutes(base)
   run('scripts/verify-auth-projects.mjs', [], { TEST_APP_URL: base })
   run('scripts/verify-sandbox-cleanup.mjs', [], { RUN_SANDBOX_CLEANUP_CHECK: '1' })
+  run('scripts/ci-browser.mjs', [], { TEST_APP_URL: base })
 })
-console.log('PASS: clean migrations, SQL invariants, generated types and authenticated two-user HTTP checks on an isolated database.')
+console.log('PASS: clean migrations, SQL invariants, generated types, authenticated HTTP and browser checks on an isolated database.')

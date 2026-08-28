@@ -70,6 +70,8 @@ jobs:
           package-manager-cache: false
       - run: npm install --global --ignore-scripts pnpm@11.19.0
       - run: pnpm install --frozen-lockfile
+      - name: Install isolated browser test runtime
+        run: pnpm exec playwright install --with-deps chromium
       - name: Start isolated local database and auth
         # Suppress the CLI's successful status summary (disposable keys).
         run: npx --yes supabase@2.116.0 start --exclude studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor > /dev/null

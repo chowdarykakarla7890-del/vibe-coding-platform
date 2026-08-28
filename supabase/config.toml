@@ -170,6 +170,9 @@ additional_redirect_urls = [
   "http://localhost:3112/auth/callback?next=**",
   "http://127.0.0.1:3112/auth/callback",
   "http://127.0.0.1:3112/auth/callback?next=**",
+  # Disposable GitHub CI browser tests use the production server on 3115.
+  "http://127.0.0.1:3115/auth/callback",
+  "http://127.0.0.1:3115/auth/callback?next=**",
   "https://codetutor-studio.vercel.app/auth/callback",
   "https://codetutor-studio.vercel.app/auth/callback?next=**",
 ]

@@ -1,0 +1,23 @@
+# Disposable browser verification
+
+The database CI job installs pinned Chromium through Playwright and runs `scripts/ci-browser.mjs` against its own production Next.js server and fresh local Supabase stack. The runner is being introduced in draft PR #1; a checked-in test is not proof that its first live CI run passes.
+
+## Safety and scope
+
+- Refuses execution outside disposable GitHub CI, with private environment files, with hosted/paid service credentials, or against anything except the fixed loopback application/database origins.
+- Creates two unique temporary Auth users. Each signs in through the real email form, local Mailpit inbox, one-time verification link, PKCE callback and session cookies. It never injects browser cookies or exports authentication state.
+- Keeps server credentials in the Node test runner, not page scripts. Restricts browser HTTP traffic to the local app and Auth service. No AI call or Sandbox VM is created.
+- Deletes only the accounts it created and closes its own browser contexts in `finally`; the enclosing CI job removes its disposable database even when checks fail.
+- Does not upload traces, screenshots, email contents, session state or raw browser exceptions. Accessibility failures report rule IDs and selectors; other errors identify the failing stage. One-time email links must never enter CI logs.
+
+## Covered workflows
+
+Real passwordless sign-in and selected-model resumption; UI project creation, renaming, switching, reload and confirmed deletion; project-specific saved chat; cross-account API/UI isolation; confirmed sign-out without affecting the other account; keyboard and collapsed navigation; a mobile drawer and tutor/workspace controls; horizontal overflow; reduced-motion mode; uncaught browser errors and hydration/update-loop errors.
+
+The suite scans sign-in, desktop workspace, project dialogs, the Practice catalog, mobile navigation/tutor and sign-out using axe's WCAG 2/2.1 A/AA tags, without excluded rules or elements. Automated scans do not prove complete accessibility or visual quality.
+
+## Still separate release gates
+
+This is Chromium against a disposable local database, not hosted OAuth, real customer email delivery, cross-browser/device coverage, live AI streaming, actual Sandbox restore/terminal/preview, scheduler deployment or a production smoke test. Saved chat fixtures are seeded deliberately; they do not claim an LLM generated the answers. See [the broader release gates](./saas-release-gates.md).
+
+References: [Next.js Playwright testing](https://nextjs.org/docs/app/guides/testing/playwright), [Playwright accessibility testing](https://playwright.dev/docs/accessibility-testing), [Supabase test isolation](https://supabase.com/docs/guides/local-development/testing/overview), and [Mailpit's local API](https://mailpit.axllent.org/docs/api-v1/).
