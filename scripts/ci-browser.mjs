@@ -79,7 +79,7 @@ async function signIn(account, next) {
 
 async function scan(page, label) {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
-  if (results.violations.length) console.error(JSON.stringify({ accessibility: label, violations: results.violations.map(item => ({ id: item.id, impact: item.impact, targets: item.nodes.map(node => node.target) })) }))
+  if (results.violations.length) console.error(JSON.stringify({ accessibility: label, violations: results.violations.map(item => ({ id: item.id, impact: item.impact, targets: item.nodes.map(node => node.target), contrast: item.nodes.flatMap(node => node.any.filter(check => check.id === 'color-contrast').map(check => ({ target: node.target, foreground: check.data?.fgColor, background: check.data?.bgColor, ratio: check.data?.contrastRatio, expected: check.data?.expectedContrastRatio }))) })) }))
   assert.equal(results.violations.length, 0, 'Automatically detectable WCAG A/AA issues must be fixed, not excluded.')
 }
 
