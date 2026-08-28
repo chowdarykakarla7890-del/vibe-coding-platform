@@ -44,7 +44,7 @@ export function CommandsLogs(props: Props) {
         <ScrollArea className="h-full">
           <div className="p-2 space-y-2">
             {props.commands.length === 0 && (
-              <div className="font-mono text-xs leading-5 text-zinc-500">
+              <div className="font-mono text-xs leading-5 text-zinc-400">
                 Run your code, tests, lint, or build here.
                 <br />Try <span className="text-zinc-300">pnpm test</span> or{' '}
                 <span className="text-zinc-300">pnpm build</span>.
@@ -68,7 +68,7 @@ export function CommandsLogs(props: Props) {
                   key={command.cmdId}
                   className="whitespace-pre-wrap font-mono text-sm"
                 >
-                  <span className="text-zinc-500">[{date}]</span>{' '}
+                  <span className="text-zinc-400">[{date}]</span>{' '}
                   <span className="text-zinc-300">$ {line}</span>
                   {command.status === 'running' && props.onStopCommand && <button type="button" disabled={stopping.has(command.cmdId)} aria-label={`Stop ${line}`} className="ml-2 text-xs underline focus-visible:outline disabled:opacity-50" onClick={async () => {
                     if (stopping.has(command.cmdId)) return
@@ -114,7 +114,7 @@ export function CommandsLogs(props: Props) {
         <span className="pl-1 font-mono text-sm text-zinc-300">$</span>
         <Input
           aria-label="Terminal command"
-          className="h-8 flex-1 border-0 bg-transparent font-mono text-xs text-zinc-100 shadow-none placeholder:text-zinc-600 focus-visible:ring-0"
+          className="h-8 flex-1 border-0 bg-transparent font-mono text-xs text-zinc-100 shadow-none placeholder:text-zinc-400 focus-visible:ring-0"
           disabled={props.disabled || running}
           onChange={(event) => setCommand(event.target.value)}
           placeholder={props.disabled ? 'Start a lesson to open a sandbox' : 'Type a command…'}

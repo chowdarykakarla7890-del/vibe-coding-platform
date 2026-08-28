@@ -97,7 +97,7 @@ export function Chat({ className }: Props) {
           <GraduationCapIcon className="mr-2 w-4 text-zinc-400" />
           Task
         </div>
-        <div className="ml-auto font-mono text-xs opacity-50">
+        <div className="ml-auto font-mono text-xs text-muted-foreground">
           [{stalled ? 'stalled' : interrupted ? 'interrupted' : status}]
         </div>
       </PanelHeader>
