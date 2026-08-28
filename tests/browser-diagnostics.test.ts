@@ -13,3 +13,9 @@ it('does not emit unknown messages, auth URLs or query parameters', () => {
   expect(browserDiagnostic('unknown error', `http://localhost/vendor/monaco/0.56.0/vs/editor/editor.main.js?code=${secret}`)).toEqual({ category: 'other', library: 'editor.main.js' })
   expect(browserDiagnostic(`Duplicate definition of module 'vs/editor?code=${secret}'`)).toEqual({ category: 'duplicate-module' })
 })
+
+it('reports only the status of failed HTTP resources, never their URL or payload', () => {
+  const secret = 'not-a-real-secret'
+  expect(browserDiagnostic(`Failed to load resource: the server responded with a status of 404 (${secret})`, `http://localhost/auth/callback?code=${secret}`)).toEqual({ category: 'http-resource', status: 404 })
+  expect(browserDiagnostic(`Provider failed with status of 502: ${secret}`)).toEqual({ category: 'other' })
+})

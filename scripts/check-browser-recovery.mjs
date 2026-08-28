@@ -177,6 +177,13 @@ export async function checkBrowserRecovery({ account, projectId, admin, base, ex
     if (completed) phase('recovery fixture cleanup and original project resumption')
     const removed = await admin.from('sandbox_sessions').delete().eq('project_id', projectId).eq('sandbox_id', sandboxId).eq('user_id', account.id)
     assert.equal(removed.error, null)
+    // The browser's project list still contains the synthetic registration.
+    // Re-read it before selecting that project, while its lifecycle mock is
+    // still installed. Otherwise cleanup itself requests a deleted fixture.
+    if (completed) {
+      await page.reload()
+      await expect(switcher()).toBeVisible()
+    }
     await page.unroute(`${base}${prefix}**`, vmRoute)
     await page.unroute(`${base}/api/sandboxes`, rejectPaid)
     await page.unroute(`${base}/api/chat`, rejectPaid)

@@ -2,6 +2,7 @@
  * authentication URLs, user source, cookies, or provider payloads. */
 export function browserDiagnostic(text = '', location = '') {
   const categories = [
+    ['http-resource', /^Failed to load resource: the server responded with a status of [45]\d{2}\b/],
     ['hydration', /hydration|didn't match/i],
     ['update-depth', /update depth/i],
     ['diff-model-disposed', /TextModel got disposed before DiffEditorWidget model got reset/],
@@ -17,9 +18,10 @@ export function browserDiagnostic(text = '', location = '') {
     ['touch', /(?:move|end) of an UNKNOWN touch/],
   ]
   const category = categories.find(([, pattern]) => pattern.test(text))?.[0] ?? 'other'
+  const status = category === 'http-resource' ? Number(text.match(/status of ([45]\d{2})\b/)[1]) : undefined
   // Only a packaged library filename is safe; ignore arbitrary document paths
   // and query strings (which may contain one-time authentication credentials).
   const match = `${location}\n${text}`.match(/\/vendor\/monaco\/\d+\.\d+\.\d+\/vs\/(?:[\w-]+\/)*([\w.-]+\.js)(?::(\d+):(\d+))?/)
   const moduleId = text.match(/^Duplicate definition of module '(vs\/[\w./!-]{1,150})'$/)?.[1]
-  return { category, ...(moduleId ? { module: moduleId } : {}), ...(match ? { library: match[1], ...(match[2] ? { line: Number(match[2]), column: Number(match[3]) } : {}) } : {}) }
+  return { category, ...(status ? { status } : {}), ...(moduleId ? { module: moduleId } : {}), ...(match ? { library: match[1], ...(match[2] ? { line: Number(match[2]), column: Number(match[3]) } : {}) } : {}) }
 }
